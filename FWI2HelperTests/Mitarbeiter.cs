@@ -1,6 +1,4 @@
-﻿using FWI2Helper;
-
-namespace FWI2HelperTests
+﻿namespace FWI2HelperTests
 {
     public class Mitarbeiter : Person, IEquatable<Mitarbeiter?>
     {
@@ -49,7 +47,7 @@ namespace FWI2HelperTests
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(LastName, FirstName, Gender, Birthday, Age, Age2, ID, Gehalt);
+            return HashCode.Combine(LastName, FirstName, Gender, Birthday, Age, ID, Gehalt);
         }
     }
 }

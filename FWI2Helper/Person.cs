@@ -26,7 +26,7 @@ namespace FWI2Helper
 
         public string FirstName { get; set; } = "";
 
-        public Gender Gender { get; set; }
+        public Gender? Gender { get; set; }
 
         public DateTime Birthday { get; set; }
 

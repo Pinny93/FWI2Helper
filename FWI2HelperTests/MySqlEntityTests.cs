@@ -12,17 +12,15 @@ namespace FWI2HelperTests
                 Password = "geheim",
             };
 
-            MySqlConnection con = new MySqlConnection(builder.ConnectionString);
-
             // Configure Factory
-            MySqlEntityFactory<Mitarbeiter> maFact = new(con, "person");
+            MySqlEntityFactory<Mitarbeiter> maFact = new(() => new MySqlConnection(builder.ConnectionString), "person");
             maFact.CreateMapping()
                 .AddPrimaryKey(p => p.ID, "id", MySqlDbType.Int32)
                 .AddField(p => p.LastName, "nachname", MySqlDbType.VarChar)
                 .AddField(p => p.FirstName, "vorname", MySqlDbType.VarChar)
                 .AddField(p => p.Gehalt, "gehalt", MySqlDbType.Decimal)
                 .AddField(p => p.Birthday, "gebdatum", MySqlDbType.Date)
-                .AddField(p => (int)p.Gender, "geschl", MySqlDbType.Int32);
+                .AddField(p => p.Gender, "geschl", MySqlDbType.Int32);
 
             return maFact;
         }
@@ -46,7 +44,7 @@ namespace FWI2HelperTests
         }
 
         [Fact]
-        public void InsertEntityAndDelete()
+        public void TestInsertEntityAndDelete()
         {
             var fact = this.GetMAFactory();
             Mitarbeiter arb = this.GetNewMitarbeiter();
@@ -60,7 +58,7 @@ namespace FWI2HelperTests
         }
 
         [Fact]
-        public void InsertUpdateAndDelete()
+        public void TestInsertUpdateAndDelete()
         {
             var fact = this.GetMAFactory();
             Mitarbeiter arb = this.GetNewMitarbeiter();
@@ -80,5 +78,30 @@ namespace FWI2HelperTests
 
             newPers.Delete();
         }
+
+        [Fact]
+        public void TestQueryThrough()
+        {
+            var fact = this.GetMAFactory();
+
+            foreach(var curMa in from ma in fact.GetAll() 
+                                 where ma.ID < 10 
+                                 select ma)
+            {
+                curMa.Gehalt += 10;
+                fact.FromEntity(curMa).Update();
+            }
+        }
+
+        [Fact]
+        public void TestCount()
+        {
+            var fact = this.GetMAFactory();
+
+            Assert.True(fact.GetAll().Any());
+
+            Assert.InRange(fact.GetAll().Count(), 1, 100);
+        }
+
     }
 }

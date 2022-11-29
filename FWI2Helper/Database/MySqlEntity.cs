@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.ObjectModel;
 using System.Data;
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Reflection;
 using MySql.Data.MySqlClient;
@@ -10,18 +12,20 @@ namespace FWI2Helper
     public class MySqlEntity<T>
         where T : class, new()
     {
-        private readonly MySqlConnection _connection;
+        private readonly Func<MySqlConnection> _connectionFactory; 
 
         public T Entity { get; private set; }
 
         public string TableName
-        { get { return this.Mapping.TableName; } }
-
-        public SqlEntityMapping<T> Mapping { get; }
-
-        internal MySqlEntity(T entity, SqlEntityMapping<T> dbMapping, MySqlConnection con)
         {
-            _connection = con;
+            get { return this.Mapping.TableName; } 
+        }
+
+        public MySqlEntityMapping<T> Mapping { get; }
+
+        internal MySqlEntity(T entity, MySqlEntityMapping<T> dbMapping, Func<MySqlConnection> conFact)
+        {
+            _connectionFactory = conFact;
 
             this.Entity = entity;
             this.Mapping = dbMapping;
@@ -29,14 +33,14 @@ namespace FWI2Helper
 
         public void Create()
         {
-            _connection.Open();
-
-            try
+            using(var con = _connectionFactory())
             {
+                con.Open();
+
                 string fields = $"{this.Mapping.Fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
                 string values = $"{this.Mapping.Fields.Select(m => "@" + m.DbColumnName).ToCommaSeparatedString()}";
 
-                MySqlCommand cmd = new($"INSERT INTO {this.TableName} ({fields}) VALUES ({values})", _connection);
+                MySqlCommand cmd = new($"INSERT INTO {this.TableName} ({fields}) VALUES ({values})", con);
                 foreach (var curMappingField in this.Mapping.Fields)
                 {
                     string parmName = $"@{curMappingField.DbColumnName}";
@@ -49,15 +53,11 @@ namespace FWI2Helper
                 // Set ID of Entity from DB
                 if (this.Mapping.PrimaryKey != null)
                 {
-                    MySqlCommand cmd2 = new("SELECT LAST_INSERT_ID();", _connection);
+                    MySqlCommand cmd2 = new("SELECT LAST_INSERT_ID();", con);
                     object id = cmd2.ExecuteScalar();
 
                     this.Mapping.PrimaryKey?.SetNetValue(this.Entity, id);
                 }
-            }
-            finally
-            {
-                _connection.Close();
             }
         }
 
@@ -65,10 +65,10 @@ namespace FWI2Helper
         {
             if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
-            _connection.Open();
-
-            try
+            using(var con = _connectionFactory())
             {
+                con.Open();
+
                 string setFields = "";
                 foreach (var curMappingField in this.Mapping.Fields)
                 {
@@ -76,7 +76,7 @@ namespace FWI2Helper
                     setFields += $"{curMappingField.DbColumnName} = @{curMappingField.DbColumnName}";
                 }
 
-                MySqlCommand cmd = new($"UPDATE {this.TableName} SET {setFields} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", _connection);
+                MySqlCommand cmd = new($"UPDATE {this.TableName} SET {setFields} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", con);
 
                 cmd.Parameters.Add("@id", this.Mapping.PrimaryKey.DbType);
                 cmd.Parameters["@id"].Value = this.Mapping.PrimaryKey.GetDBValue(this.Entity);
@@ -92,30 +92,22 @@ namespace FWI2Helper
 
                 cmd.ExecuteNonQuery();
             }
-            finally
-            {
-                _connection.Close();
-            }
         }
 
         public void Delete()
         {
             if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
-            _connection.Open();
-
-            try
+            using(var con = _connectionFactory())
             {
-                MySqlCommand cmd = new($"DELETE FROM {this.TableName} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", _connection);
+                con.Open();
+
+                MySqlCommand cmd = new($"DELETE FROM {this.TableName} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", con);
 
                 cmd.Parameters.Add("@id", this.Mapping.PrimaryKey.DbType);
                 cmd.Parameters["@id"].Value = this.Mapping.PrimaryKey.GetDBValue(this.Entity);
 
                 cmd.ExecuteNonQuery();
-            }
-            finally
-            {
-                _connection.Close();
             }
         }
     }
@@ -123,19 +115,19 @@ namespace FWI2Helper
     public class MySqlEntityFactory<T>
         where T : class, new()
     {
-        private MySqlConnection _connection;
+        private Func<MySqlConnection> _connectionFactory;
 
-        public SqlEntityMapping<T> Mapping { get; }
+        public MySqlEntityMapping<T> Mapping { get; }
 
-        public MySqlEntityFactory(MySqlConnection con, string tableName)
+        public MySqlEntityFactory(Func<MySqlConnection> conFact, string tableName)
         {
-            _connection = con;
+            _connectionFactory = conFact;
             this.Mapping = new(tableName);
         }
 
-        public MySqlEntityFactory(SqlEntityMapping<T> mapping, MySqlConnection con)
+        public MySqlEntityFactory(MySqlEntityMapping<T> mapping, Func<MySqlConnection> conFact)
         {
-            _connection = con;
+            _connectionFactory = conFact;
             this.Mapping = mapping;
         }
 
@@ -143,13 +135,13 @@ namespace FWI2Helper
         {
             if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
-            try
+            using(var con = _connectionFactory())
             {
-                _connection.Open();
+                con.Open();
 
                 string dbColumns = $"{this.Mapping.Fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
 
-                MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", _connection);
+                MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", con);
 
                 cmd.Parameters.Add("@id", this.Mapping.PrimaryKey.DbType);
                 cmd.Parameters["@id"].Value = id;
@@ -168,10 +160,6 @@ namespace FWI2Helper
 
                 return newEntity;
             }
-            finally
-            {
-                _connection.Close();
-            }
         }
 
         public MySqlEntity<T> GetById<TPrimaryKey>(TPrimaryKey id)
@@ -181,25 +169,55 @@ namespace FWI2Helper
 
         public MySqlEntity<T> FromEntity(T entity)
         {
-            return new MySqlEntity<T>(entity, this.Mapping, _connection);
+            return new MySqlEntity<T>(entity, this.Mapping, _connectionFactory);
         }
 
-        public IEnumerable<T> GetAll()
+        public IQueryable<T> GetAll()
         {
-            // TODO
-            yield break;
+            List<T> data = new List<T>();
+
+            // TODO: Enhance, so that no complete enumeration is done on every call... (Implement IQueryable Provider)
+            IEnumerable<T> EnumerateAll()
+            {
+                using(var con = _connectionFactory())
+                {
+                    con.Open();
+
+                    string dbColumns = $"{this.Mapping.Fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
+
+                    MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName}", con);
+
+                    var rdr = cmd.ExecuteReader();
+                    while (rdr.Read())
+                    {
+                        T newEntity = new();
+                        foreach (var curMapping in this.Mapping.Fields)
+                        {
+                            curMapping.SetNetValue(newEntity, rdr[curMapping.DbColumnName]);
+                        }
+
+                        Trace.WriteLine($"GetAll(): Enumerating through {typeof(T).FullName}:{this.Mapping?.PrimaryKey?.GetDBValue(newEntity) ?? -1}");
+                        yield return newEntity;
+                    }
+
+                    Trace.WriteLine($"GetAll(): End of Enumeration {typeof(T).FullName}");
+                    yield break;
+                }
+            }
+            
+            return EnumerateAll().AsQueryable();
         }
 
-        public SqlEntityMapping<T> CreateDefaultMapping()
+        public MySqlEntityMapping<T> CreateDefaultMapping()
         {
             foreach (PropertyInfo curProperty in typeof(T).GetProperties())
             {
-                SqlEntityFieldMapping<T> mapping = new();
+                MySqlEntityFieldMapping<T> mapping = new();
 
                 mapping.DotNetType = curProperty.PropertyType;
                 mapping.ClassPropertyName = curProperty.Name;
                 mapping.DbColumnName = curProperty.Name.ToLower();
-                mapping.DbType = SqlEntityFieldMapping<T>.GetDefaultDbTypeFromNetType(curProperty.PropertyType);
+                mapping.DbType = MySqlEntityFieldMapping<T>.GetDefaultDbTypeFromNetType(curProperty.PropertyType);
 
                 this.Mapping.AddField(mapping);
             }
@@ -207,51 +225,70 @@ namespace FWI2Helper
             return this.Mapping;
         }
 
-        public SqlEntityMapping<T> CreateMapping()
+        public MySqlEntityMapping<T> CreateMapping()
         {
             return this.Mapping;
         }
     }
 
-    public class SqlEntityMapping<T>
+    public class MySqlQuery<T> : IQueryable<T>
+    {
+        public Type ElementType => throw new NotImplementedException();
+
+        public Expression Expression => throw new NotImplementedException();
+
+        public IQueryProvider Provider => throw new NotImplementedException();
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class MySqlEntityMapping<T>
         where T : class
     {
-        private List<SqlEntityFieldMapping<T>> _fields = new();
+        private List<MySqlEntityFieldMapping<T>> _fields = new();
 
-        public SqlEntityFieldMapping<T>? PrimaryKey { get; set; }
+        public MySqlEntityFieldMapping<T>? PrimaryKey { get; set; }
 
-        public ReadOnlyCollection<SqlEntityFieldMapping<T>> Fields { get; }
+        public ReadOnlyCollection<MySqlEntityFieldMapping<T>> Fields { get; }
 
         public string TableName { get; internal set; } = "defaultTable";
 
-        public SqlEntityMapping()
+        public MySqlEntityMapping()
         {
             this.Fields = new(_fields);
         }
 
-        public SqlEntityMapping(string tableName)
+        public MySqlEntityMapping(string tableName)
             : this()
         {
             this.TableName = tableName;
         }
 
-        internal SqlEntityMapping<T> AddField(SqlEntityFieldMapping<T> field)
+        internal MySqlEntityMapping<T> AddField(MySqlEntityFieldMapping<T> field)
         {
             _fields.Add(field);
             return this;
         }
 
-        public SqlEntityMapping<T> AddField(Expression<Func<T, object>> expression, string dbColumnName, MySqlDbType? dbType = null)
+        public MySqlEntityMapping<T> AddField(Expression<Func<T, object?>> expression, string dbColumnName, MySqlDbType? dbType = null)
         {
-            _fields.Add(new SqlEntityFieldMapping<T>(expression, dbColumnName, dbType));
+            _fields.Add(new MySqlEntityFieldMapping<T>(expression, dbColumnName, dbType));
             return this;
         }
 
-        public SqlEntityMapping<T> AddPrimaryKey(Expression<Func<T, object>> expression, string dbColumnName, MySqlDbType? dbType = null)
+        public MySqlEntityMapping<T> AddPrimaryKey(Expression<Func<T, object?>> expression, string dbColumnName, MySqlDbType? dbType = null)
         {
             if (this.PrimaryKey != null) { throw new InvalidOperationException("Primary key already set!"); }
 
-            var field = new SqlEntityFieldMapping<T>(expression, dbColumnName, dbType);
+            var field = new MySqlEntityFieldMapping<T>(expression, dbColumnName, dbType);
 
             this.PrimaryKey = field;
             _fields.Add(field);
@@ -259,14 +296,14 @@ namespace FWI2Helper
         }
     }
 
-    public class SqlEntityFieldMapping<T>
+    public class MySqlEntityFieldMapping<T>
         where T : class
     {
-        public SqlEntityFieldMapping()
+        public MySqlEntityFieldMapping()
         {
         }
 
-        public SqlEntityFieldMapping(Expression<Func<T, object>> expression, string dbColumnName, MySqlDbType? dbType = null)
+        public MySqlEntityFieldMapping(Expression<Func<T, object?>> expression, string dbColumnName, MySqlDbType? dbType = null)
         {
             static MemberInfo GetMember(Expression expr)
             {
@@ -328,26 +365,41 @@ namespace FWI2Helper
             if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
 
             object? valueToSet = value;
+            if(value is DBNull) { valueToSet = null; }
 
             // If types not identical, try to convert
-            if (value?.GetType() != propInfo.PropertyType)
+            Type netType = propInfo.PropertyType;
+            if (valueToSet?.GetType() != netType)
             {
-                if (propInfo.PropertyType.IsEnum)
+                bool isNullable = netType.IsGenericType && !netType.IsGenericTypeDefinition && netType.GetGenericTypeDefinition() == typeof(Nullable<>);
+                if(isNullable)
                 {
-                    if (value == null) { throw new InvalidOperationException("Enum value must not be null!"); }
-
-                    // Convert Enum to correct underlying type (can be int, uint, etc...)
-                    Type targetType = Enum.GetUnderlyingType(propInfo.PropertyType);
-                    object targetValue;
-
-                    targetValue = Convert.ChangeType(value, targetType);
-
-                    // Set Enum as enum type
-                    valueToSet = Enum.ToObject(propInfo.PropertyType, targetValue);
+                    netType = netType.GenericTypeArguments[0];
                 }
-                else
+            
+                // Handle Nullable -> If not nullable, null is not allowed on value types
+                if(!isNullable && netType.IsValueType && valueToSet is null) 
                 {
-                    valueToSet = Convert.ChangeType(value, propInfo.PropertyType);
+                    throw new InvalidOperationException($"A value of the value type {netType.FullName} must not be null!"); 
+                }
+
+                if (netType.IsEnum)
+                {
+
+                    Type targetType = Enum.GetUnderlyingType(netType);
+                    if(valueToSet is not null) // otherwise valueToSet is already null
+                    {
+                        // Convert Enum to correct underlying type (can be int, uint, etc...)
+                        object targetValue = Convert.ChangeType(valueToSet, targetType);
+
+                        // Set Enum as enum type
+                        valueToSet = Enum.ToObject(netType, targetValue);
+                    }
+                    
+                }
+                else if(valueToSet != null)
+                {
+                    valueToSet = Convert.ChangeType(valueToSet, netType);
                 }
             }
 
