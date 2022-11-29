@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FWI2Helper\FWI2Helper\FWI2Helper.csproj" />
+    <ProjectReference Include="..\FWI2Helper\FWI2Helper.csproj" />
   </ItemGroup>
 
 </Project>

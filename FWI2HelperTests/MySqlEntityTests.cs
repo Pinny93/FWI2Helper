@@ -1,6 +1,3 @@
-using FWI2Helper;
-using MySql.Data.MySqlClient;
-
 namespace FWI2HelperTests
 {
     public class MySqlEntityTests
@@ -77,7 +74,7 @@ namespace FWI2HelperTests
             newPers.Entity.LastName = "Strunk";
             newPers.Entity.Gender = Gender.Male;
             newPers.Entity.Gehalt = 10000.215m;
-            newPers.Entity.Birthday = DateTime.MaxValue;
+            newPers.Entity.Birthday = DateTime.Today;
             newPers.Update();
             this.EnsureEntityMatchesDB(arb, fact);
 
