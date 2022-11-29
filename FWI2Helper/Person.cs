@@ -34,7 +34,7 @@ namespace FWI2Helper
         {
             get
             {
-                return Convert.ToInt32((Convert.ToInt32($"{DateTime.Today:yyyyMMdd}") - Convert.ToInt32($"{this.Birthday:yyyyMMdd}")).ToString()[0..^4]);
+                return Convert.ToInt32((Convert.ToInt32($"{DateTime.Today:yyyyMMdd}") - Convert.ToInt32($"{this.Birthday:yyyyMMdd}")).ToString().PadLeft(8, '0')[0..^4]);
             }
         }
 
