@@ -1,42 +1,41 @@
 ﻿using System;
 using MySql.Data.MySqlClient;
 
-namespace FWI2Helper.Database
+namespace FWI2Helper.Database;
+
+public static class DBAccessHelper
 {
-    public static class DBAccessHelper
+    public static MySqlConnection MySqlOpenDB()
     {
-        public static MySqlConnection MySqlOpenDB()
+        MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder()
         {
-            MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder()
-            {
-                Server = "bszw.ddns.net",
-                Database = "fwi2123_pinzer",
-                UserID = "fwi2123",
-                Password = "geheim",
-            };
+            Server = "bszw.ddns.net",
+            Database = "fwi2123_pinzer",
+            UserID = "fwi2123",
+            Password = "geheim",
+        };
 
-            MySqlConnection con = new MySqlConnection(builder.ConnectionString);
+        MySqlConnection con = new MySqlConnection(builder.ConnectionString);
 
-            return con;
-        }
+        return con;
+    }
 
-        public static void MySqlCloseDB(MySqlConnection con)
-        {
-            con.Close();
-        }
+    public static void MySqlCloseDB(MySqlConnection con)
+    {
+        con.Close();
+    }
 
-        public static int MySqlExecuteNonQuery(string sql)
-        {
-            int anz;
+    public static int MySqlExecuteNonQuery(string sql)
+    {
+        int anz;
 
-            MySqlConnection con = MySqlOpenDB();
-            MySqlCommand cmd = new MySqlCommand(sql, con);
+        MySqlConnection con = MySqlOpenDB();
+        MySqlCommand cmd = new MySqlCommand(sql, con);
 
-            anz = cmd.ExecuteNonQuery();
+        anz = cmd.ExecuteNonQuery();
 
-            MySqlCloseDB(con);
+        MySqlCloseDB(con);
 
-            return anz;
-        }
+        return anz;
     }
 }
