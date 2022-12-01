@@ -73,29 +73,28 @@ public class MySqlEntityFieldMapping<T>
         if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
 
         object? valueToSet = value;
-        if(value is DBNull) { valueToSet = null; }
+        if (value is DBNull) { valueToSet = null; }
 
         // If types not identical, try to convert
         Type netType = propInfo.PropertyType;
         if (valueToSet?.GetType() != netType)
         {
             bool isNullable = netType.IsGenericType && !netType.IsGenericTypeDefinition && netType.GetGenericTypeDefinition() == typeof(Nullable<>);
-            if(isNullable)
+            if (isNullable)
             {
                 netType = netType.GenericTypeArguments[0];
             }
-        
+
             // Handle Nullable -> If not nullable, null is not allowed on value types
-            if(!isNullable && netType.IsValueType && valueToSet is null) 
+            if (!isNullable && netType.IsValueType && valueToSet is null)
             {
-                throw new InvalidOperationException($"A value of the value type {netType.FullName} must not be null!"); 
+                throw new InvalidOperationException($"A value of the value type {netType.FullName} must not be null!");
             }
 
             if (netType.IsEnum)
             {
-
                 Type targetType = Enum.GetUnderlyingType(netType);
-                if(valueToSet is not null) // otherwise valueToSet is already null
+                if (valueToSet is not null) // otherwise valueToSet is already null
                 {
                     // Convert Enum to correct underlying type (can be int, uint, etc...)
                     object targetValue = Convert.ChangeType(valueToSet, targetType);
@@ -103,15 +102,19 @@ public class MySqlEntityFieldMapping<T>
                     // Set Enum as enum type
                     valueToSet = Enum.ToObject(netType, targetValue);
                 }
-                
             }
-            else if(valueToSet != null)
+            else if (valueToSet != null)
             {
                 valueToSet = Convert.ChangeType(valueToSet, netType);
             }
         }
 
         typeof(T).GetProperty(this.ClassPropertyName)?.SetValue(entity, valueToSet);
+    }
+
+    public override string ToString()
+    {
+        return $"FieldMapping '{this.ClassPropertyName}' ({this.DotNetType.FullName}) --> '{this.DbColumnName}' ({this.DbType})";
     }
 
     public string DbColumnName { get; set; } = "";

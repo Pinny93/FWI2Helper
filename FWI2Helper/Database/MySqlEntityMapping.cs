@@ -48,4 +48,9 @@ public class MySqlEntityMapping<T>
         _fields.Add(field);
         return this;
     }
+
+    public override string ToString()
+    {
+        return $"Mapping for '{typeof(T).FullName}' to Table '{this.TableName}'";
+    }
 }

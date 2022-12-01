@@ -7,13 +7,13 @@ namespace FWI2Helper.Database;
 public class MySqlEntity<T>
     where T : class, new()
 {
-    private readonly Func<MySqlConnection> _connectionFactory; 
+    private readonly Func<MySqlConnection> _connectionFactory;
 
     public T Entity { get; private set; }
 
     public string TableName
     {
-        get { return this.Mapping.TableName; } 
+        get { return this.Mapping.TableName; }
     }
 
     public MySqlEntityMapping<T> Mapping { get; }
@@ -28,7 +28,7 @@ public class MySqlEntity<T>
 
     public void Create()
     {
-        using(var con = _connectionFactory())
+        using (var con = _connectionFactory())
         {
             con.Open();
 
@@ -45,8 +45,9 @@ public class MySqlEntity<T>
 
             cmd.ExecuteNonQuery();
 
-            // Set ID of Entity from DB
-            if (this.Mapping.PrimaryKey != null)
+            // Set ID of Entity from DB - If ID not already set...
+            if (this.Mapping.PrimaryKey != null &&
+                this.Mapping.PrimaryKey.GetDBValue(this.Entity)?.Equals(0) == true)
             {
                 MySqlCommand cmd2 = new("SELECT LAST_INSERT_ID();", con);
                 object id = cmd2.ExecuteScalar();
@@ -60,7 +61,7 @@ public class MySqlEntity<T>
     {
         if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
-        using(var con = _connectionFactory())
+        using (var con = _connectionFactory())
         {
             con.Open();
 
@@ -93,7 +94,7 @@ public class MySqlEntity<T>
     {
         if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
-        using(var con = _connectionFactory())
+        using (var con = _connectionFactory())
         {
             con.Open();
 

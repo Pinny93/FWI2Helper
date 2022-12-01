@@ -26,9 +26,20 @@ public class MySqlEntityFactory<T>
 
     public T GetEntityById<TPrimaryKey>(TPrimaryKey id)
     {
+        T? entity = TryGetEntityById(id);
+        if (entity == null)
+        {
+            throw new Exception($"ID '{id}' not found in {this.Mapping.TableName}!");
+        }
+
+        return entity;
+    }
+
+    public T? TryGetEntityById<TPrimaryKey>(TPrimaryKey id)
+    {
         if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
-        using(var con = _connectionFactory())
+        using (var con = _connectionFactory())
         {
             con.Open();
 
@@ -42,7 +53,7 @@ public class MySqlEntityFactory<T>
             var rdr = cmd.ExecuteReader();
             if (!rdr.Read())
             {
-                throw new Exception($"ID '{id}' not found in {this.Mapping.TableName}!");
+                return null;
             }
 
             T newEntity = new();
@@ -72,7 +83,7 @@ public class MySqlEntityFactory<T>
         // TODO: Enhance, so that no complete enumeration is done on every call... (Implement IQueryable Provider)
         IEnumerable<T> EnumerateAll()
         {
-            using(var con = _connectionFactory())
+            using (var con = _connectionFactory())
             {
                 con.Open();
 
@@ -98,7 +109,7 @@ public class MySqlEntityFactory<T>
                 yield break;
             }
         }
-        
+
         return EnumerateAll().AsQueryable();
     }
 
