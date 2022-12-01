@@ -5,7 +5,7 @@ namespace FWI2Helper
     public class SimpleFileLogger : LoggerBase
     {
         private string _fileName;
-        private StreamWriter _logWriter;
+        private StreamWriter? _logWriter;
 
         public SimpleFileLogger(string fileName)
         {
