@@ -52,6 +52,8 @@ public class MySqlEntity<T>
                 MySqlCommand cmd2 = new("SELECT LAST_INSERT_ID();", con);
                 object id = cmd2.ExecuteScalar();
 
+                if (id.Equals(0)) { throw new NotSupportedException("ID is 0. Maybe AUTO_INCREAMENT not set. Currently only tables with auto increament supported!"); }
+
                 this.Mapping.PrimaryKey?.SetNetValue(this.Entity, id);
             }
         }
