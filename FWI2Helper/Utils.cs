@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Text;
 
 namespace FWI2Helper
@@ -71,6 +72,21 @@ namespace FWI2Helper
             }
 
             return extremaItems;
+        }
+
+        public static Version? GetAssemblyVersion(this Assembly asm)
+        {
+            return asm.GetName().Version;
+        }
+
+        public static string? GetFileVersion(this Assembly asm)
+        {
+            return asm.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version;
+        }
+
+        public static string? GetInformalVersion(this Assembly asm)
+        {
+            return asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         }
     }
 }
