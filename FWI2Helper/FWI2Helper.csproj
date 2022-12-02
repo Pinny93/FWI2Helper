@@ -4,6 +4,18 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  
+  <PropertyGroup>
+    <PackageId>FWI2Helper</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Johannes Pinzer</Authors>
+    <Company>JP Industires</Company>
+    <PackageTags>FWI2 Helper</PackageTags>
+    <Description>
+      Hilft für alles und für nichts
+    </Description>
   </PropertyGroup>
 
   <ItemGroup>
