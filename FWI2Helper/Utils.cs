@@ -28,17 +28,17 @@ namespace FWI2Helper
             return builder.ToString();
         }
 
-        public static IEnumerable<TItem> GetMinimumItems<TItem, TSelector>(this IEnumerable<TItem> enumerable, Func<TItem, TSelector> selector, IComparer<TSelector> comparer = null)
+        public static IEnumerable<TItem> GetMinimumItems<TItem, TSelector>(this IEnumerable<TItem> enumerable, Func<TItem, TSelector> selector, IComparer<TSelector>? comparer = null)
         {
             return enumerable.GetExtremaItems(selector, comparer, (result) => result == 1);
         }
 
-        public static IEnumerable<TItem> GetMaximumItems<TItem, TSelector>(this IEnumerable<TItem> enumerable, Func<TItem, TSelector> selector, IComparer<TSelector> comparer = null)
+        public static IEnumerable<TItem> GetMaximumItems<TItem, TSelector>(this IEnumerable<TItem> enumerable, Func<TItem, TSelector> selector, IComparer<TSelector>? comparer = null)
         {
             return enumerable.GetExtremaItems(selector, comparer, (result) => result == -1);
         }
 
-        private static IEnumerable<TItem> GetExtremaItems<TItem, TSelector>(this IEnumerable<TItem> enumerable, Func<TItem, TSelector> selector, IComparer<TSelector> comparer, Func<int, bool> clearListCondition)
+        private static IEnumerable<TItem> GetExtremaItems<TItem, TSelector>(this IEnumerable<TItem> enumerable, Func<TItem, TSelector> selector, IComparer<TSelector>? comparer, Func<int, bool> clearListCondition)
         {
             if (selector == null) { throw new ArgumentNullException(nameof(selector)); }
 
