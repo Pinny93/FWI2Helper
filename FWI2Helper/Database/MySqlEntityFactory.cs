@@ -59,7 +59,9 @@ public class MySqlEntityFactory<T>
             T newEntity = new();
             foreach (var curMapping in this.Mapping.Fields)
             {
-                curMapping.SetNetValue(newEntity, rdr[curMapping.DbColumnName]);
+                if (curMapping is MySqlEntityFieldMappingForeignKey<TPrimaryKey,>)
+
+                    curMapping.SetNetValue(newEntity, rdr[curMapping.DbColumnName]);
             }
 
             return newEntity;

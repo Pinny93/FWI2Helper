@@ -49,6 +49,33 @@ public class MySqlEntityMapping<T>
         return this;
     }
 
+    public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, TForeignKey?>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
+        where TForeignKey : class
+    {
+        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
+
+        _fields.Add(field);
+        return this;
+    }
+
+    public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, IEnumerable<TForeignKey>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
+        where TForeignKey : class
+    {
+        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
+
+        _fields.Add(field);
+        return this;
+    }
+
+    public MySqlEntityMapping<T> AddForeignKeyImport<TForeignKey>(Expression<Func<TForeignKey, IEnumerable<T>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
+        where TForeignKey : class
+    {
+        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
+
+        _fields.Add(field);
+        return this;
+    }
+
     public override string ToString()
     {
         return $"Mapping for '{typeof(T).FullName}' to Table '{this.TableName}'";

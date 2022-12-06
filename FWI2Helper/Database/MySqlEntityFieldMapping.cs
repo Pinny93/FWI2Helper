@@ -7,8 +7,20 @@ namespace FWI2Helper.Database;
 public class MySqlEntityFieldMapping<T>
     where T : class
 {
-    public MySqlEntityFieldMapping()
+    public string ClassPropertyName { get; }
+
+    public string DbColumnName { get; }
+
+    public MySqlDbType DbType { get; }
+
+    public Type DotNetType { get; }
+
+    public MySqlEntityFieldMapping(string classPorpertyName, Type netType, string dbColumnName, MySqlDbType? dbType = null)
     {
+        this.DotNetType = netType;
+        this.ClassPropertyName = classPorpertyName;
+        this.DbColumnName = dbColumnName;
+        this.DbType = dbType ?? GetDefaultDbTypeFromNetType(this.DotNetType);
     }
 
     public MySqlEntityFieldMapping(Expression<Func<T, object?>> expression, string dbColumnName, MySqlDbType? dbType = null)
@@ -48,6 +60,11 @@ public class MySqlEntityFieldMapping<T>
             nameof(DateTime) => MySqlDbType.DateTime,
             _ => MySqlDbType.String,
         };
+    }
+
+    public override string ToString()
+    {
+        return $"FieldMapping '{this.ClassPropertyName}' ({this.DotNetType.FullName}) --> '{this.DbColumnName}' ({this.DbType})";
     }
 
     /// <summary>
@@ -111,17 +128,4 @@ public class MySqlEntityFieldMapping<T>
 
         typeof(T).GetProperty(this.ClassPropertyName)?.SetValue(entity, valueToSet);
     }
-
-    public override string ToString()
-    {
-        return $"FieldMapping '{this.ClassPropertyName}' ({this.DotNetType.FullName}) --> '{this.DbColumnName}' ({this.DbType})";
-    }
-
-    public string DbColumnName { get; set; } = "";
-
-    public string ClassPropertyName { get; set; } = "";
-
-    public MySqlDbType DbType { get; set; }
-
-    public Type DotNetType { get; set; } = typeof(void);
 }
