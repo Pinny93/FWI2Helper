@@ -33,7 +33,19 @@ namespace FWI2HelperTests
                         fkeyBest.MapType == ForeignKeyMapType.Side1Import);
         }
 
+        [Fact]
+        public void TestGetEntityWithForeignKey()
+        {
+            FactoryInitializer.InitializeFactories();
 
+            var best = Bestellung.GetById(1);
+
+            Assert.True(best.Id == 1);
+            Assert.True(best.Kunde != null);
+            Assert.True(best.Positionen != null);
+            Assert.True(best.Status == BestellStatus.Warenkorb);
+        }
+        
         [Fact]
         public void TestCreateEntityWithForeignKey()
         {
@@ -80,14 +92,6 @@ namespace FWI2HelperTests
             best.Delete();
             art.Delete();
             k.Delete();
-        }
-
-        [Fact]
-        public void TestGetEntityWithForeignKey()
-        {
-            Bestellung best = DBBestellung.Instance.GetById(1);
-
-            Assert.Equal(1, best.Id);
         }
     }
 }
