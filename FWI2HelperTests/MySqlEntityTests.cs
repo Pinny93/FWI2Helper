@@ -13,8 +13,8 @@ namespace FWI2HelperTests
             };
 
             // Configure Factory
-            MySqlEntityFactory<Mitarbeiter> maFact = new(() => new(builder.ConnectionString), "person");
-            maFact.CreateMapping()
+            MySqlEntityFactory<Mitarbeiter> maFact = new(() => new(builder.ConnectionString));
+            maFact.CreateMapping("person")
                 .AddPrimaryKey(p => p.ID, "id", MySqlDbType.Int32)
                 .AddField(p => p.LastName, "nachname", MySqlDbType.VarChar)
                 .AddField(p => p.FirstName, "vorname", MySqlDbType.VarChar)

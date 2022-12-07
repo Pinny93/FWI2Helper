@@ -9,8 +9,8 @@ namespace FWI2HelperTests.ArtikelData
         public override MySqlEntityFactory<Artikel> GetFactory()
         {
             // Configure Factory
-            MySqlEntityFactory<Artikel> maFact = new(MySqlOpenDB, "webshop_artikel");
-            maFact.CreateMapping()
+            MySqlEntityFactory<Artikel> maFact = new(MySqlOpenDB);
+            maFact.CreateMapping("webshop_artikel")
                 .AddPrimaryKey(e => e.Id, "id", MySqlDbType.Int32)
                 .AddField(e => e.Bezeichnung, "bezeichnung", MySqlDbType.VarChar)
                 .AddField(e => e.Beschreibung, "beschreibung", MySqlDbType.Text)

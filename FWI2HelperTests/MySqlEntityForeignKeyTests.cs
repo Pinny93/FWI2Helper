@@ -1,13 +1,43 @@
 ﻿using System;
 using FWI2HelperTests.ForeignKeyData;
+using Artikel = FWI2HelperTests.ForeignKeyData.Artikel;
 
 namespace FWI2HelperTests
 {
     public class MySqlEntityForeignKeyTests
     {
         [Fact]
+        public void TestForeignKeyBuilding()
+        {
+            FactoryInitializer.InitializeFactories();
+            var fact = DBBestellung.Instance.GetFactory();
+
+            Assert.True(fact.Mapping.Fields.Count == 4, "Invalid Field count for mapping!");
+            Assert.True(fact.Mapping.Fields[0] == fact.Mapping.PrimaryKey);
+
+            // Bestellung.Kunde
+            Assert.True(fact.Mapping.Fields[2] is MySqlEntityFieldMappingForeignKey<Bestellung, Kunde> fKeyMapping &&
+                        fKeyMapping.MapType == ForeignKeyMapType.Side1Property);
+            // Bestellung.Positionen
+            Assert.True(fact.Mapping.Fields[3] is MySqlEntityFieldMappingForeignKey<Bestellung, BestellPos> fKeyMapping2 &&
+                        fKeyMapping2.MapType == ForeignKeyMapType.SideNList);
+
+            
+            var factPos = DBBestellPos.Instance.GetFactory();
+            Assert.True(factPos.Mapping.Fields.Count == 4);
+            Assert.True(factPos.Mapping.Fields[0] == factPos.Mapping.PrimaryKey);
+
+            Assert.True(factPos.Mapping.Fields[1] is MySqlEntityFieldMappingForeignKey<BestellPos, Artikel> fkeyArt &&
+                        fkeyArt.MapType == ForeignKeyMapType.Side1Property);
+            Assert.True(factPos.Mapping.Fields[2] is MySqlEntityFieldMappingForeignKey<BestellPos, Bestellung> fkeyBest &&
+                        fkeyBest.MapType == ForeignKeyMapType.Side1Import);
+        }
+
+
+        [Fact]
         public void TestCreateEntityWithForeignKey()
         {
+            FactoryInitializer.InitializeFactories();
             Kunde k = new Kunde()
             {
                 Name = "Test",

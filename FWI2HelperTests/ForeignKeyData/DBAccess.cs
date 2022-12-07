@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace FWI2HelperTests.ForeignKeyData
 {
-    public abstract class DBAccess<T>
+    public class DBAccess<T>
         where T : class, new()
     {
         protected static DBAccess<T>? _instance;
@@ -52,7 +52,26 @@ namespace FWI2HelperTests.ForeignKeyData
             return null;
         }
 
-        public abstract MySqlEntityFactory<T> GetFactory();
+        public virtual MySqlEntityFactory<T> GetFactory(string factContainer = "default")
+        {
+            return MySqlFactContainer.GetInstance(factContainer).GetFactoryForEntity<T>();
+        }
+
+        public static void RegisterFactory(Action<MySqlEntityFactory<T>> factoryBuilder, string factContainer = "default")
+        {
+            MySqlEntityFactory<T> fact = new MySqlEntityFactory<T>(MySqlOpenDB);
+            factoryBuilder(fact);
+
+            MySqlFactContainer.GetInstance(factContainer).RegisterFactory(fact);
+        }
+
+        public static void RegisterFactory(string factContainer = "default")
+        {
+            MySqlEntityFactory<T> fact = new MySqlEntityFactory<T>(MySqlOpenDB);
+            fact.CreateDefaultMapping();
+
+            MySqlFactContainer.GetInstance(factContainer).RegisterFactory(fact);
+        }
 
         public static MySqlConnection MySqlOpenDB()
         {

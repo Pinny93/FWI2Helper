@@ -1,20 +1,19 @@
 using System.Linq.Expressions;
 using System.Reflection;
-using Google.Protobuf.WellKnownTypes;
 using MySql.Data.MySqlClient;
 
 namespace FWI2Helper.Database;
 
-public class MySqlEntityFieldMappingForeignKey<TEntity> : MySqlEntityFieldMapping<TEntity>
-    where TEntity : class
+public abstract class MySqlEntityFieldMappingForeignKey<TEntity> : MySqlEntityFieldMapping<TEntity>
+    where TEntity : class, new()
 {
-    public string ForeignTableName { get; }
+    public string ForeignTableName { get; init; }
 
-    public ForeignKeyMapType MapType { get; }
+    public ForeignKeyMapType MapType { get; init; }
 
-    public Type ForeignKeyNetType { get; }
+    public Type ForeignKeyNetType { get; init; }
 
-    public MySqlEntityFieldMappingForeignKey(string classPropertyName, Type netType, string dbColumnName, string dbForeignTableName, ForeignKeyMapType mapType, Type foreignKeyNetType MySqlDbType? dbType = null)
+    public MySqlEntityFieldMappingForeignKey(string classPropertyName, Type netType, string dbColumnName, string dbForeignTableName, ForeignKeyMapType mapType, Type foreignKeyNetType, MySqlDbType? dbType = null)
         : base(classPropertyName, netType, dbColumnName, dbType)
     {
         this.ForeignTableName = dbForeignTableName;
@@ -22,39 +21,48 @@ public class MySqlEntityFieldMappingForeignKey<TEntity> : MySqlEntityFieldMappin
         this.ForeignKeyNetType = foreignKeyNetType;
     }
 
-    public MySqlEntityFieldMappingForeignKey(Expression<Func<T, TForeignKey?>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : this(classPropertyName, netType, dbColumnName, dbType)
-    {
-    }
+    public abstract void ResolveNetEntityById(TEntity entity, object id);
 
-    public MySqlEntityFieldMappingForeignKey(Expression<Func<T, IEnumerable<TForeignKey>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : base(expression, dbColumnName, dbType)
+    public abstract void ResolveNetEntitiesById(TEntity entity);
+    
+    public override string ToString()
     {
-    }
-
-    public MySqlEntityFieldMappingForeignKey(Expression<Func<T, TForeignKey?>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : base(expression, dbColumnName, dbType)
-    {
-    }
-
-    public MySqlEntityFieldMappingForeignKey(Expression<Func<TForeignKey, IEnumerable<T>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : base(expression, dbColumnName, dbType)
-    {
+        return $"FieldMappingForeignKey '{this.ClassPropertyName}' ({this.DotNetType.FullName}) --> '{this.ForeignTableName}.{this.DbColumnName}' ({this.DbType})";
     }
 }
 
 public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlEntityFieldMappingForeignKey<TEntity>
-    where TEntity : class
-    where TForeignEntity : class
+    where TEntity : class, new()
+    where TForeignEntity : class, new()
 {
-    public MySqlEntityFieldMappingForeignKey(Expression<Func<TEntity, object?>> expression, string dbColumnName, string dbForeignTableName, MySqlDbType? dbType = null)
-        : base(expression, dbColumnName, dbType)
+    public MySqlEntityFieldMappingForeignKey(Expression<Func<TEntity, TForeignEntity?>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
+        :  base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.Side1Property, typeof(TForeignEntity), dbType)
     {
-        this.ForeignTableName = dbForeignTableName;
-        this.MapType = ForeignKeyMapType.Side1Property;
+        var declInfo = this.GetFromExpression(expression);
+        //this.DotNetType = this.GetForeignKeyType();
+
+        this.ClassPropertyName = declInfo.propertyName;
     }
 
-    public MySqlEntityFieldMappingForeignKey(Expression<Func<TForeignEntity, object?>> expression, string dbColumnName, string dbForeignTableName, MySqlDbType? dbType = null)
+    public MySqlEntityFieldMappingForeignKey(Expression<Func<TEntity, IEnumerable<TForeignEntity>>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
+        :  base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.SideNList, null!, dbType)
+    {
+        var declInfo = this.GetFromExpression(expression);
+        //this.DotNetType = this.GetForeignKeyType();
+
+        this.ClassPropertyName = declInfo.propertyName;
+    }
+
+    public MySqlEntityFieldMappingForeignKey(Expression<Func<TForeignEntity, IEnumerable<TEntity>>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
+        :  base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.Side1Import, typeof(TForeignEntity), dbType)
+    {
+        var declInfo = this.GetFromExpression(expression);
+        //this.DotNetType = this.GetForeignKeyType();
+
+        this.ClassPropertyName = declInfo.propertyName;
+    }
+
+    private (string propertyName, Type netType) GetFromExpression(LambdaExpression expression)
     {
         static MemberInfo GetMember(Expression expr)
         {
@@ -73,23 +81,73 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
 
         MemberInfo member = GetMember(expression.Body);
 
-        this.DotNetType = member.DeclaringType ?? typeof(void);
-        this.ClassPropertyName = member.Name;
-        this.DbColumnName = dbColumnName;
-        this.DbType = dbType ?? GetDefaultDbTypeFromNetType(this.DotNetType);
+        if(member.DeclaringType == null) { throw new Exception("Declaring Type not found!"); }
 
-        this.ForeignTableName = dbForeignTableName;
-        this.MapType = ForeignKeyMapType.SideNList;
+        return (member.Name, member.DeclaringType);
     }
 
-    public override string ToString()
+    private Type GetForeignKeyType()
     {
-        return $"FieldMappingForeignKey '{this.ClassPropertyName}' ({this.DotNetType.FullName}) --> '{this.ForeignTableName}.{this.DbColumnName}' ({this.DbType})";
+        var foreignMapping = MySqlFactContainer.Default
+                                .GetFactoryForEntity<TForeignEntity>()
+                                .Mapping.PrimaryKey;
+                                
+        if(foreignMapping == null) { throw new Exception($"Mapping of Foreign Entity '{typeof(TForeignEntity).FullName}' has no Primary Key defined!"); }
+
+        return foreignMapping.DotNetType;
     }
+
+    private Type GetEnumerableType(Type enumerableType)
+    {
+        if(!enumerableType.IsGenericType || enumerableType.GetGenericTypeDefinition() != typeof(IEnumerable<>))
+        {
+            throw new ArgumentException("Type is no IEnumerable<>!");
+        }
+
+        return enumerableType.GetGenericArguments()[0];
+    }
+
+    public override void ResolveNetEntityById(TEntity entity, object foreignId)
+    {
+        if(this.MapType != ForeignKeyMapType.Side1Property) { throw new Exception("Not allowed for this MapType!"); }
+
+        TForeignEntity? foreignEntity = MySqlFactContainer.Default
+                                            .GetFactoryForEntity<TForeignEntity>()
+                                            .TryGetEntityById(foreignId);
+
+        this.SetNetValue(entity, foreignEntity);
+    }
+
+    public override void ResolveNetEntitiesById(TEntity entity)
+    {
+        if(this.MapType != ForeignKeyMapType.SideNList) { throw new Exception("Not allowed for this MapType!"); }
+
+        object? entityPrimaryKey = MySqlFactContainer.Default
+                                                        .GetFactoryForEntity<TEntity>()
+                                                        .Mapping.PrimaryKey?.GetNetValue(entity);
+
+
+        var foreignMapping = MySqlFactContainer.Default
+                                .GetFactoryForEntity<TForeignEntity>()
+                                .Mapping.PrimaryKey;
+
+        if(foreignMapping == null) { throw new InvalidOperationException("Foreign Primary Key not found!"); }
+
+        IEnumerable<TForeignEntity> foreignEntities = MySqlFactContainer.Default
+                                                        .GetFactoryForEntity<TForeignEntity>()
+                                                        .GetAll()
+                                                        .Where(foreignEntity => foreignMapping.GetNetValue(foreignEntity) == entityPrimaryKey);
+
+        foreach(TForeignEntity curEntity in foreignEntities)
+        {
+            this.AddNetValueToCollection(entity, curEntity);
+        }
+    }     
 }
 
 public enum ForeignKeyMapType
 {
     SideNList,
-    Side1Property
+    Side1Property,
+    Side1Import
 }

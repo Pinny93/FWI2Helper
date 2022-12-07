@@ -5,15 +5,15 @@ using MySql.Data.MySqlClient;
 namespace FWI2Helper.Database;
 
 public class MySqlEntityFieldMapping<T>
-    where T : class
+    where T : class, new()
 {
-    public string ClassPropertyName { get; }
+    public string ClassPropertyName { get; init; }
 
-    public string DbColumnName { get; }
+    public string DbColumnName { get; init; }
 
-    public MySqlDbType DbType { get; }
+    public MySqlDbType DbType { get; init; }
 
-    public Type DotNetType { get; }
+    public Type DotNetType { get; init; }
 
     public MySqlEntityFieldMapping(string classPorpertyName, Type netType, string dbColumnName, MySqlDbType? dbType = null)
     {
@@ -76,15 +76,85 @@ public class MySqlEntityFieldMapping<T>
         if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
 
         object? value = propInfo.GetValue(entity);
-        if (propInfo.PropertyType.IsEnum)
-        {
-            value = value is null ? null : (int)value;
-        }
+        
+        return this.NetValue2DbValue(entity, value);
+    }
 
+    internal object? GetNetValue(T entity)
+    {
+        var propInfo = typeof(T).GetProperty(this.ClassPropertyName);
+        if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
+
+        object? value = propInfo.GetValue(entity);
         return value;
     }
 
+    internal void SetNetValueFromReader(T entity, object? value)
+    {
+        if (this is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
+        {
+            switch(foreignKeyMapping.MapType)
+            {
+                case ForeignKeyMapType.Side1Import:
+                    break;
+                case ForeignKeyMapType.Side1Property:
+                    if(value != null) { foreignKeyMapping.ResolveNetEntityById(entity, value); }
+                    break;
+                case ForeignKeyMapType.SideNList:
+                    foreignKeyMapping.ResolveNetEntitiesById(entity);
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown Map Type");
+            }
+        }
+        else
+        {
+            this.SetNetValue(entity, value);
+        }
+    }
+
     internal void SetNetValue(T entity, object? value)
+    {
+        typeof(T).GetProperty(this.ClassPropertyName)?.SetValue(entity, this.DbValue2NetValue(value));
+    }
+
+    internal void AddNetValueToCollection(T entity, object? value)
+    {
+        var propInfo = typeof(T).GetProperty(this.ClassPropertyName);
+        if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
+
+        object? valueToGet = propInfo.GetValue(entity);
+        Type? valueType = valueToGet?.GetType();
+
+        if(valueType == null)
+        {
+            throw new InvalidOperationException($"Value of Property '{this.ClassPropertyName}' is null!");
+        }
+        else if(valueType is IList<T> listType)
+        {
+            listType.Add(entity);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Type '{valueType.FullName}' is no supported List type!");
+        }
+    }
+
+    private object? NetValue2DbValue(T entity, object? value)
+    {
+        var propInfo = typeof(T).GetProperty(this.ClassPropertyName);
+        if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
+
+        object? valueToGet = propInfo.GetValue(entity);
+        if (propInfo.PropertyType.IsEnum)
+        {
+            valueToGet = valueToGet is null ? null : (int)valueToGet;
+        }
+
+        return valueToGet;
+    }
+
+    private object? DbValue2NetValue(object? value)
     {
         var propInfo = typeof(T).GetProperty(this.ClassPropertyName);
         if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
@@ -126,6 +196,6 @@ public class MySqlEntityFieldMapping<T>
             }
         }
 
-        typeof(T).GetProperty(this.ClassPropertyName)?.SetValue(entity, valueToSet);
+        return valueToSet;
     }
 }

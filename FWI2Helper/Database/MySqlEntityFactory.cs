@@ -5,17 +5,22 @@ using MySql.Data.MySqlClient;
 
 namespace FWI2Helper.Database;
 
-public class MySqlEntityFactory<T>
+public abstract class MySqlEntityFactory 
+{
+    public abstract Type GetEntityType();
+}
+
+public class MySqlEntityFactory<T> : MySqlEntityFactory
     where T : class, new()
 {
     private Func<MySqlConnection> _connectionFactory;
 
-    public MySqlEntityMapping<T> Mapping { get; }
+    public MySqlEntityMapping<T> Mapping { get; private set; }
 
-    public MySqlEntityFactory(Func<MySqlConnection> conFact, string tableName)
+    public MySqlEntityFactory(Func<MySqlConnection> conFact)
     {
         _connectionFactory = conFact;
-        this.Mapping = new(tableName);
+        this.Mapping = new();
     }
 
     public MySqlEntityFactory(MySqlEntityMapping<T> mapping, Func<MySqlConnection> conFact)
@@ -59,9 +64,7 @@ public class MySqlEntityFactory<T>
             T newEntity = new();
             foreach (var curMapping in this.Mapping.Fields)
             {
-                if (curMapping is MySqlEntityFieldMappingForeignKey<TPrimaryKey,>)
-
-                    curMapping.SetNetValue(newEntity, rdr[curMapping.DbColumnName]);
+                curMapping.SetNetValueFromReader(newEntity, rdr[curMapping.DbColumnName]);
             }
 
             return newEntity;
@@ -119,12 +122,9 @@ public class MySqlEntityFactory<T>
     {
         foreach (PropertyInfo curProperty in typeof(T).GetProperties())
         {
-            MySqlEntityFieldMapping<T> mapping = new();
-
-            mapping.DotNetType = curProperty.PropertyType;
-            mapping.ClassPropertyName = curProperty.Name;
-            mapping.DbColumnName = curProperty.Name.ToLower();
-            mapping.DbType = MySqlEntityFieldMapping<T>.GetDefaultDbTypeFromNetType(curProperty.PropertyType);
+            MySqlEntityFieldMapping<T> mapping = 
+                new MySqlEntityFieldMapping<T>(curProperty.Name, curProperty.PropertyType, 
+                    curProperty.Name.ToLower(), MySqlEntityFieldMapping<T>.GetDefaultDbTypeFromNetType(curProperty.PropertyType));
 
             this.Mapping.AddField(mapping);
         }
@@ -132,8 +132,14 @@ public class MySqlEntityFactory<T>
         return this.Mapping;
     }
 
-    public MySqlEntityMapping<T> CreateMapping()
+    public MySqlEntityMapping<T> CreateMapping(string tableName)
     {
+        this.Mapping = new MySqlEntityMapping<T>(tableName);
         return this.Mapping;
+    }
+
+    public override Type GetEntityType()
+    {
+        return typeof(T);
     }
 }

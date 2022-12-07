@@ -5,7 +5,7 @@ using MySql.Data.MySqlClient;
 namespace FWI2Helper.Database;
 
 public class MySqlEntityMapping<T>
-    where T : class
+    where T : class, new()
 {
     private List<MySqlEntityFieldMapping<T>> _fields = new();
 
@@ -50,7 +50,7 @@ public class MySqlEntityMapping<T>
     }
 
     public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, TForeignKey?>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        where TForeignKey : class
+        where TForeignKey : class, new()
     {
         var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
 
@@ -59,7 +59,7 @@ public class MySqlEntityMapping<T>
     }
 
     public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, IEnumerable<TForeignKey>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        where TForeignKey : class
+        where TForeignKey : class, new()
     {
         var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
 
@@ -68,7 +68,7 @@ public class MySqlEntityMapping<T>
     }
 
     public MySqlEntityMapping<T> AddForeignKeyImport<TForeignKey>(Expression<Func<TForeignKey, IEnumerable<T>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        where TForeignKey : class
+        where TForeignKey : class, new()
     {
         var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
 
