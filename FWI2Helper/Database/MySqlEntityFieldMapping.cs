@@ -119,25 +119,24 @@ public class MySqlEntityFieldMapping<T>
         typeof(T).GetProperty(this.ClassPropertyName)?.SetValue(entity, this.DbValue2NetValue(value));
     }
 
-    internal void AddNetValueToCollection(T entity, object? value)
+    internal void AddNetValueToCollection<TItem>(T entity, TItem value)
     {
         var propInfo = typeof(T).GetProperty(this.ClassPropertyName);
         if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
 
         object? valueToGet = propInfo.GetValue(entity);
-        Type? valueType = valueToGet?.GetType();
 
-        if(valueType == null)
+        if(valueToGet == null)
         {
             throw new InvalidOperationException($"Value of Property '{this.ClassPropertyName}' is null!");
         }
-        else if(valueType is IList<T> listType)
+        else if(valueToGet is IList<TItem> listType)
         {
-            listType.Add(entity);
+            listType.Add(value);
         }
         else
         {
-            throw new InvalidOperationException($"Type '{valueType.FullName}' is no supported List type!");
+            throw new InvalidOperationException($"Type '{valueToGet.GetType()}' is no supported List type!");
         }
     }
 

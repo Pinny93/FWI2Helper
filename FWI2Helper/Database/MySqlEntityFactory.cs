@@ -100,13 +100,13 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
 
                 MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName}", con);
 
-                var rdr = cmd.ExecuteReader();
+                MySqlDataReader rdr = cmd.ExecuteReader();
                 while (rdr.Read())
                 {
                     T newEntity = new();
                     foreach (var curMapping in fields)
                     {
-                        curMapping.SetNetValue(newEntity, rdr[curMapping.DbColumnName]);
+                        curMapping.SetNetValueFromReader(newEntity, rdr);
                     }
 
                     Trace.WriteLine($"GetAll(): Enumerating through {typeof(T).FullName}:{this.Mapping?.PrimaryKey?.GetDBValue(newEntity) ?? -1}");
@@ -114,7 +114,6 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
                 }
 
                 Trace.WriteLine($"GetAll(): End of Enumeration {typeof(T).FullName}");
-                yield break;
             }
         }
 

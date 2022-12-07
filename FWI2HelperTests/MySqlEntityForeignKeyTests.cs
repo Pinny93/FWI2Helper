@@ -38,11 +38,12 @@ namespace FWI2HelperTests
         {
             FactoryInitializer.InitializeFactories();
 
-            var best = Bestellung.GetById(1);
+            Bestellung best = Bestellung.GetById(1);
 
             Assert.True(best.Id == 1);
             Assert.True(best.Kunde != null);
             Assert.True(best.Positionen != null);
+            Assert.True(best.Positionen?.Count > 0);
             Assert.True(best.Status == BestellStatus.Warenkorb);
         }
         

@@ -122,9 +122,9 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
     {
         if(this.MapType != ForeignKeyMapType.SideNList) { throw new Exception("Not allowed for this MapType!"); }
 
-        object? entityPrimaryKey = MySqlFactContainer.Default
+        object entityPrimaryKey = MySqlFactContainer.Default
                                                         .GetFactoryForEntity<TEntity>()
-                                                        .Mapping.PrimaryKey?.GetNetValue(entity);
+                                                        .Mapping.PrimaryKey?.GetNetValue(entity) ?? throw new InvalidOperationException("Primary Key must not be null!");
 
 
         var foreignMapping = MySqlFactContainer.Default
@@ -136,7 +136,8 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         IEnumerable<TForeignEntity> foreignEntities = MySqlFactContainer.Default
                                                         .GetFactoryForEntity<TForeignEntity>()
                                                         .GetAll()
-                                                        .Where(foreignEntity => foreignMapping.GetNetValue(foreignEntity) == entityPrimaryKey);
+                                                        .ToList()
+                                                        .Where(foreignEntity => { return entityPrimaryKey.Equals(foreignMapping.GetNetValue(foreignEntity)); });
 
         foreach(TForeignEntity curEntity in foreignEntities)
         {

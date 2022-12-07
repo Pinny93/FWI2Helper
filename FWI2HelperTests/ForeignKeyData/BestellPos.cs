@@ -16,14 +16,14 @@ namespace FWI2HelperTests.ForeignKeyData
             }
             set
             {
-                if (_menge < 1) { throw new ArgumentException("Menge darf nicht kleiner 1 sein!"); }
-
+                if (value < 1) { throw new ArgumentException("Menge darf nicht kleiner 1 sein!"); }
                 _menge = value;
             }
         }
 
         public BestellPos()
         {
+            this.Menge = 1;
         }
 
         public BestellPos(Artikel artikel, int menge)
