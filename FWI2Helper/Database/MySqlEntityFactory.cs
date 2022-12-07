@@ -48,7 +48,10 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
         {
             con.Open();
 
-            string dbColumns = $"{this.Mapping.Fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
+            var dbColumns = this.Mapping.Fields
+                .Where(field => !(field is MySqlEntityFieldMappingForeignKey<T> fkey && fkey.MapType == ForeignKeyMapType.SideNList))
+                .Select(m => m.DbColumnName)
+                .ToCommaSeparatedString();
 
             MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName} WHERE {this.Mapping.PrimaryKey.DbColumnName} = @id", con);
 
@@ -64,7 +67,7 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
             T newEntity = new();
             foreach (var curMapping in this.Mapping.Fields)
             {
-                curMapping.SetNetValueFromReader(newEntity, rdr[curMapping.DbColumnName]);
+                curMapping.SetNetValueFromReader(newEntity, rdr);
             }
 
             return newEntity;

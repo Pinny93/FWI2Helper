@@ -49,28 +49,28 @@ public class MySqlEntityMapping<T>
         return this;
     }
 
-    public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, TForeignKey?>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
+    public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, TForeignKey?>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
         where TForeignKey : class, new()
     {
-        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
+        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbForeignTableName, dbColumnName, dbType);
 
         _fields.Add(field);
         return this;
     }
 
-    public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, IEnumerable<TForeignKey>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
+    public MySqlEntityMapping<T> AddForeignKey<TForeignKey>(Expression<Func<T, IEnumerable<TForeignKey>>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
         where TForeignKey : class, new()
     {
-        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
+        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbForeignTableName, dbColumnName, dbType);
 
         _fields.Add(field);
         return this;
     }
 
-    public MySqlEntityMapping<T> AddForeignKeyImport<TForeignKey>(Expression<Func<TForeignKey, IEnumerable<T>>> expression, string foreignTableName, string dbColumnName, MySqlDbType? dbType = null)
+    public MySqlEntityMapping<T> AddForeignKeyImport<TForeignKey>(Expression<Func<TForeignKey, IEnumerable<T>>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
         where TForeignKey : class, new()
     {
-        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbColumnName, foreignTableName, dbType);
+        var field = new MySqlEntityFieldMappingForeignKey<T, TForeignKey>(expression, dbForeignTableName, dbColumnName, dbType);
 
         _fields.Add(field);
         return this;

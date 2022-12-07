@@ -89,7 +89,7 @@ public class MySqlEntityFieldMapping<T>
         return value;
     }
 
-    internal void SetNetValueFromReader(T entity, object? value)
+    internal void SetNetValueFromReader(T entity, MySqlDataReader rdr)
     {
         if (this is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
         {
@@ -98,6 +98,7 @@ public class MySqlEntityFieldMapping<T>
                 case ForeignKeyMapType.Side1Import:
                     break;
                 case ForeignKeyMapType.Side1Property:
+                    object? value = rdr[this.DbColumnName];
                     if(value != null) { foreignKeyMapping.ResolveNetEntityById(entity, value); }
                     break;
                 case ForeignKeyMapType.SideNList:
@@ -109,7 +110,7 @@ public class MySqlEntityFieldMapping<T>
         }
         else
         {
-            this.SetNetValue(entity, value);
+            this.SetNetValue(entity, rdr[this.DbColumnName]);
         }
     }
 
