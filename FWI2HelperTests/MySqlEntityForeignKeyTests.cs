@@ -22,7 +22,6 @@ namespace FWI2HelperTests
             Assert.True(fact.Mapping.Fields[3] is MySqlEntityFieldMappingForeignKey<Bestellung, BestellPos> fKeyMapping2 &&
                         fKeyMapping2.MapType == ForeignKeyMapType.SideNList);
 
-            
             var factPos = DBBestellPos.Instance.GetFactory();
             Assert.True(factPos.Mapping.Fields.Count == 4);
             Assert.True(factPos.Mapping.Fields[0] == factPos.Mapping.PrimaryKey);
@@ -46,7 +45,39 @@ namespace FWI2HelperTests
             Assert.True(best.Positionen?.Count > 0);
             Assert.True(best.Status == BestellStatus.Warenkorb);
         }
-        
+
+        [Fact]
+        public void TestInsertWithForeignKey()
+        {
+            FactoryInitializer.InitializeFactories();
+
+            Bestellung best = new Bestellung()
+            {
+                Kunde = Kunde.GetById(1),
+                Positionen =
+                {
+                    new BestellPos()
+                    {
+                        Artikel = Artikel.GetById(1),
+                        Menge = 5
+                    }
+                },
+                Status = BestellStatus.Warenkorb,
+            };
+            best.Create();
+            int id = best.Id;
+
+            best = Bestellung.GetById(id);
+            Assert.True(best.Id > 0);
+            Assert.True(best.Kunde == Kunde.GetById(1));
+            Assert.True(best.Positionen.Count == 1);
+            Assert.True(best.Positionen[0].Artikel != null);
+            Assert.True(best.Status == BestellStatus.Warenkorb);
+
+            // Cleanup
+            best.Delete();
+        }
+
         [Fact]
         public void TestCreateEntityWithForeignKey()
         {

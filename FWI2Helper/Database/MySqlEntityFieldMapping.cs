@@ -70,13 +70,13 @@ public class MySqlEntityFieldMapping<T>
     /// <summary>
     /// Gets the value for the Database
     /// </summary>
-    internal object? GetDBValue(T entity)
+    internal virtual object? GetDBValue(T entity)
     {
         var propInfo = typeof(T).GetProperty(this.ClassPropertyName);
         if (propInfo == null) { throw new InvalidOperationException($"Property '{this.ClassPropertyName}' not found on class '{typeof(T).FullName}'"); }
 
         object? value = propInfo.GetValue(entity);
-        
+
         return this.NetValue2DbValue(entity, value);
     }
 
@@ -93,17 +93,20 @@ public class MySqlEntityFieldMapping<T>
     {
         if (this is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
         {
-            switch(foreignKeyMapping.MapType)
+            switch (foreignKeyMapping.MapType)
             {
                 case ForeignKeyMapType.Side1Import:
                     break;
+
                 case ForeignKeyMapType.Side1Property:
                     object? value = rdr[this.DbColumnName];
-                    if(value != null) { foreignKeyMapping.ResolveNetEntityById(entity, value); }
+                    if (value != null) { foreignKeyMapping.ResolveNetEntityById(entity, value); }
                     break;
+
                 case ForeignKeyMapType.SideNList:
                     foreignKeyMapping.ResolveNetEntitiesById(entity);
                     break;
+
                 default:
                     throw new NotSupportedException("Unknown Map Type");
             }
@@ -126,11 +129,11 @@ public class MySqlEntityFieldMapping<T>
 
         object? valueToGet = propInfo.GetValue(entity);
 
-        if(valueToGet == null)
+        if (valueToGet == null)
         {
             throw new InvalidOperationException($"Value of Property '{this.ClassPropertyName}' is null!");
         }
-        else if(valueToGet is IList<TItem> listType)
+        else if (valueToGet is IList<TItem> listType)
         {
             listType.Add(value);
         }

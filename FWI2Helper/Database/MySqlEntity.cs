@@ -32,18 +32,10 @@ public class MySqlEntity<T>
         {
             con.Open();
 
-            string fields = $"{this.Mapping.Fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
-            string values = $"{this.Mapping.Fields.Select(m => "@" + m.DbColumnName).ToCommaSeparatedString()}";
+            List<MySqlCommand> commands = GetInsertCommands(con, SQLCommandKind.BaseEntity);
+            var originalInsert = commands.Single();
 
-            MySqlCommand cmd = new($"INSERT INTO {this.TableName} ({fields}) VALUES ({values})", con);
-            foreach (var curMappingField in this.Mapping.Fields)
-            {
-                string parmName = $"@{curMappingField.DbColumnName}";
-                cmd.Parameters.Add(parmName, curMappingField.DbType);
-                cmd.Parameters[parmName].Value = curMappingField.GetDBValue(this.Entity);
-            }
-
-            cmd.ExecuteNonQuery();
+            originalInsert.ExecuteNonQuery();
 
             // Set ID of Entity from DB - If ID not already set...
             if (this.Mapping.PrimaryKey != null &&
@@ -56,7 +48,67 @@ public class MySqlEntity<T>
 
                 this.Mapping.PrimaryKey?.SetNetValue(this.Entity, id);
             }
+
+            // All other inserts need to be done after the id was retrieved
+            commands = GetInsertCommands(con, SQLCommandKind.ChildEntities);
+            for (int i = 0; i < commands.Count; i++)
+            {
+                commands[i].ExecuteNonQuery();
+            }
         }
+    }
+
+    internal List<MySqlCommand> GetInsertCommands(MySqlConnection con, SQLCommandKind kind, object? foreignBaseEntityKey = null)
+    {
+        List<MySqlCommand> subCommands = new List<MySqlCommand>();
+
+        var mappings = this.Mapping.Fields
+                        .Where(field => field is not MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping ||
+                                    foreignKeyMapping.MapType != ForeignKeyMapType.SideNList);
+
+        string fields = $"{mappings.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
+        string values = $"{mappings.Select(m => "@" + m.DbColumnName).ToCommaSeparatedString()}";
+        MySqlCommand cmd = new($"INSERT INTO {this.TableName} ({fields}) VALUES ({values})", con);
+
+        foreach (MySqlEntityFieldMapping<T> curMappingField in this.Mapping.Fields)
+        {
+            string parmName = $"@{curMappingField.DbColumnName}";
+            if (curMappingField is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
+            {
+                switch (foreignKeyMapping.MapType)
+                {
+                    case ForeignKeyMapType.SideNList:
+                        if (kind.HasFlag(SQLCommandKind.ChildEntities)) { subCommands.AddRange(foreignKeyMapping.HandleInsertReferences(this.Entity, con)); }
+                        break;
+
+                    case ForeignKeyMapType.Side1Import:
+                        if (foreignBaseEntityKey == null) { throw new InvalidOperationException("Individual Insert of this Entity not allowed!"); }
+                        cmd.Parameters.Add(parmName, curMappingField.DbType);
+                        cmd.Parameters[parmName].Value = foreignBaseEntityKey;
+                        break;
+
+                    case ForeignKeyMapType.Side1Property:
+                        cmd.Parameters.Add(parmName, curMappingField.DbType);
+                        cmd.Parameters[parmName].Value = foreignKeyMapping.GetDBValue(this.Entity);
+                        break;
+
+                    default:
+                        throw new InvalidOperationException("Unknown Mapping Type!");
+                }
+            }
+            else
+            {
+                cmd.Parameters.Add(parmName, curMappingField.DbType);
+                cmd.Parameters[parmName].Value = curMappingField.GetDBValue(this.Entity);
+            }
+        }
+
+        if (kind.HasFlag(SQLCommandKind.BaseEntity))
+        {
+            subCommands.Insert(0, cmd);
+        }
+
+        return subCommands;
     }
 
     public void Update()
@@ -108,4 +160,13 @@ public class MySqlEntity<T>
             cmd.ExecuteNonQuery();
         }
     }
+}
+
+[Flags]
+internal enum SQLCommandKind
+{
+    BaseEntity = 1,
+    ChildEntities = 2,
+
+    All = 3,
 }
