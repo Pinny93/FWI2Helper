@@ -28,14 +28,18 @@ public class MySqlEntity<T>
 
     public void Create()
     {
+        this.Create<object>(null);
+    }
+
+    internal void Create<TForeignEntity>(MySqlEntityCreationContext<TForeignEntity>? context)
+        where TForeignEntity : class, new()
+    {
         using (var con = _connectionFactory())
         {
             con.Open();
 
-            List<MySqlCommand> commands = GetInsertCommands(con, SQLCommandKind.BaseEntity);
-            var originalInsert = commands.Single();
-
-            originalInsert.ExecuteNonQuery();
+            var cmd = GetInsertCommand<TForeignEntity>(con, context);
+            cmd.ExecuteNonQuery();
 
             // Set ID of Entity from DB - If ID not already set...
             if (this.Mapping.PrimaryKey != null &&
@@ -50,18 +54,24 @@ public class MySqlEntity<T>
             }
 
             // All other inserts need to be done after the id was retrieved
-            commands = GetInsertCommands(con, SQLCommandKind.ChildEntities);
-            for (int i = 0; i < commands.Count; i++)
+            this.Insert1ListForeignEntites();
+        }
+    }
+
+    private void Insert1ListForeignEntites()
+    {
+        foreach (MySqlEntityFieldMapping<T> curMappingField in this.Mapping.Fields)
+        {
+            if (curMappingField is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
             {
-                commands[i].ExecuteNonQuery();
+                foreignKeyMapping.EnsureForeignEntitesCreated(this.Entity);
             }
         }
     }
 
-    internal List<MySqlCommand> GetInsertCommands(MySqlConnection con, SQLCommandKind kind, object? foreignBaseEntityKey = null)
+    private MySqlCommand GetInsertCommand<TForeignEntity>(MySqlConnection con, MySqlEntityCreationContext<TForeignEntity>? context)
+        where TForeignEntity : class, new()
     {
-        List<MySqlCommand> subCommands = new List<MySqlCommand>();
-
         var mappings = this.Mapping.Fields
                         .Where(field => field is not MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping ||
                                     foreignKeyMapping.MapType != ForeignKeyMapType.Side1List);
@@ -78,13 +88,13 @@ public class MySqlEntity<T>
                 switch (foreignKeyMapping.MapType)
                 {
                     case ForeignKeyMapType.Side1List:
-                        if (kind.HasFlag(SQLCommandKind.ChildEntities)) { subCommands.AddRange(foreignKeyMapping.HandleInsertReferences(this.Entity, con)); }
+                        // Done in Insert1ListForeignEntites()
                         break;
 
                     case ForeignKeyMapType.SideNListImport:
-                        if (foreignBaseEntityKey == null) { throw new InvalidOperationException("Individual Insert of this Entity not allowed!"); }
+                        if (context == null) { throw new InvalidOperationException("Individual Insert of this Entity needs an Context with the foreign entity!"); }
                         cmd.Parameters.Add(parmName, curMappingField.DbType);
-                        cmd.Parameters[parmName].Value = foreignBaseEntityKey;
+                        cmd.Parameters[parmName].Value = context.GetForeignEntityPrimaryKey();
                         break;
 
                     case ForeignKeyMapType.SideNProperty:
@@ -103,12 +113,7 @@ public class MySqlEntity<T>
             }
         }
 
-        if (kind.HasFlag(SQLCommandKind.BaseEntity))
-        {
-            subCommands.Insert(0, cmd);
-        }
-
-        return subCommands;
+        return cmd;
     }
 
     public void Update()
@@ -168,6 +173,25 @@ public class MySqlEntity<T>
 
             cmd.ExecuteNonQuery();
         }
+    }
+}
+
+public class MySqlEntityCreationContext<TForeignEntity>
+    where TForeignEntity : class, new()
+{
+    public MySqlEntityCreationContext(/*MySqlEntityFieldMappingForeignKey<TForeignEntity> foreignKey,*/ TForeignEntity baseEntity)
+    {
+        //this.ForeignKey = foreignKey;
+        this.ForeignEntity = baseEntity;
+    }
+
+    //public MySqlEntityFieldMappingForeignKey<TForeignEntity> ForeignKey { get; }
+
+    public TForeignEntity ForeignEntity { get; }
+
+    public object? GetForeignEntityPrimaryKey()
+    {
+        return MySqlEntityFieldMappingForeignKey<TForeignEntity>.GetPrimaryKey(this.ForeignEntity);
     }
 }
 

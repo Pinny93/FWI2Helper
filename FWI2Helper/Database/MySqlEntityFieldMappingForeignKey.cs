@@ -21,13 +21,20 @@ public abstract class MySqlEntityFieldMappingForeignKey<TEntity> : MySqlEntityFi
         this.ForeignKeyNetType = foreignKeyNetType;
     }
 
+    internal static object GetPrimaryKey(TEntity entity)
+    {
+        return MySqlFactContainer.Default
+                    .GetFactoryForEntity<TEntity>()
+                    .Mapping.PrimaryKey?.GetNetValue(entity) ?? throw new InvalidOperationException("Primary Key must not be null!");
+    }
+
     internal abstract void ResolveNetEntityById(TEntity entity, object id);
 
     internal abstract void ResolveNetEntitiesById(TEntity entity);
 
     internal abstract void EnsureForeignEntitesDeleted(TEntity entity);
 
-    internal abstract IEnumerable<MySqlCommand> HandleInsertReferences(TEntity entity, MySqlConnection con);
+    internal abstract void EnsureForeignEntitesCreated(TEntity entity);
 
     public override string ToString()
     {
@@ -176,24 +183,40 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         this.SetNetValue(entity, foreignEntity);
     }
 
-    internal override IEnumerable<MySqlCommand> HandleInsertReferences(TEntity entity, MySqlConnection con)
+    internal override void EnsureForeignEntitesCreated(TEntity entity)
     {
-        List<MySqlCommand> commands = new List<MySqlCommand>();
-
-        IEnumerable<TForeignEntity>? list = this.GetNetValue(entity) as IEnumerable<TForeignEntity>;
-        if (list == null) { throw new ArgumentException("Foreign Entity List is null!"); }
-
-        var entityPrimaryKey = GetPrimaryKey(entity);
-        var foreignFactory = MySqlFactContainer.Default.GetFactoryForEntity<TForeignEntity>();
-        foreach (TForeignEntity foreignEntity in list)
+        switch (this.MapType)
         {
-            var dbEntity = foreignFactory.TryGetEntityById(GetForeignEntityPrimaryKey(foreignEntity));
-            if (dbEntity != null) { continue; }
+            case ForeignKeyMapType.Side1List:
+                var entityPrimaryKey = GetPrimaryKey(entity);
 
-            commands.AddRange(foreignFactory.FromEntity(foreignEntity).GetInsertCommands(con, SQLCommandKind.All, entityPrimaryKey));
+                var foreignFactory = MySqlFactContainer.Default
+                                            .GetFactoryForEntity<TForeignEntity>();
+
+                IEnumerable<TForeignEntity>? list = this.GetNetValue(entity) as IEnumerable<TForeignEntity>;
+                if (list == null) { throw new ArgumentException("Foreign Entity List is null!"); }
+
+                foreach (TForeignEntity foreignEntity in list)
+                {
+                    // Check if entity already exists in DB
+                    var dbEntity = foreignFactory.TryGetEntityById(GetForeignEntityPrimaryKey(foreignEntity));
+                    if (dbEntity != null) { continue; }
+
+                    foreignFactory.FromEntity(foreignEntity).Create(new MySqlEntityCreationContext<TEntity>(entity));
+                }
+                break;
+
+            case ForeignKeyMapType.SideNProperty:
+                // No further action needed - N side can be deleted without removal of 1 side
+                break;
+
+            case ForeignKeyMapType.SideNListImport:
+                // No further action needed (Entity cannot be removed in List, we don't know how many copies of the foreign entity are existing)
+                break;
+
+            default:
+                throw new NotSupportedException("Unknown Map Type!");
         }
-
-        return commands;
     }
 
     /// <summary>
@@ -216,13 +239,6 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         {
             this.AddNetValueToCollection(entity, curEntity);
         }
-    }
-
-    private static object GetPrimaryKey(TEntity entity)
-    {
-        return MySqlFactContainer.Default
-                    .GetFactoryForEntity<TEntity>()
-                    .Mapping.PrimaryKey?.GetNetValue(entity) ?? throw new InvalidOperationException("Primary Key must not be null!");
     }
 
     /// <summary>
