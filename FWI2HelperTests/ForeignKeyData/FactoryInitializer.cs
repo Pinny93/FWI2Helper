@@ -2,8 +2,12 @@ namespace FWI2HelperTests.ForeignKeyData;
 
 public static class FactoryInitializer
 {
+    public static bool _initialized = false;
+
     public static void InitializeFactories()
     {
+        if(_initialized) { return; }
+
         // Configure Factory
         DBAccess<Artikel>.RegisterFactory((fact) => 
         {
@@ -44,6 +48,7 @@ public static class FactoryInitializer
                 .AddForeignKeyImport<Bestellung>(e => e.Positionen, "webshop_bestellung", "idbestellung", MySqlDbType.Int32)
                 .AddField(e => e.Menge, "menge", MySqlDbType.Int32);
         });
-
+        
+        _initialized = true;
     }    
 }
