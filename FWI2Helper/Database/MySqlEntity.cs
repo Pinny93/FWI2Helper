@@ -58,6 +58,9 @@ public class MySqlEntity<T>
         }
     }
 
+    /// <summary>
+    /// Inserts assigned ForeignKeys which are assigned as Collection on this entity 
+    /// </summary>
     private void Insert1ListForeignEntites()
     {
         foreach (MySqlEntityFieldMapping<T> curMappingField in this.Mapping.Fields)
@@ -65,6 +68,20 @@ public class MySqlEntity<T>
             if (curMappingField is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
             {
                 foreignKeyMapping.EnsureForeignEntitesCreated(this.Entity);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Updates assigned ForeignKeys which are assigned as Collection on this entity 
+    /// </summary>
+    private void Update1ListForeignEntites()
+    {
+        foreach (MySqlEntityFieldMapping<T> curMappingField in this.Mapping.Fields)
+        {
+            if (curMappingField is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
+            {
+                foreignKeyMapping.EnsureForeignEntitesUpdated(this.Entity);
             }
         }
     }
@@ -120,6 +137,8 @@ public class MySqlEntity<T>
     {
         if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
 
+        this.Update1ListForeignEntites();
+
         using (var con = _connectionFactory())
         {
             con.Open();
@@ -127,6 +146,22 @@ public class MySqlEntity<T>
             string setFields = "";
             foreach (var curMappingField in this.Mapping.Fields)
             {
+                if(curMappingField is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
+                {
+                    switch (foreignKeyMapping.MapType)
+                    {
+                        case ForeignKeyMapType.Side1List:
+                        case ForeignKeyMapType.SideNListImport:
+                            continue;
+
+                        case ForeignKeyMapType.SideNProperty:
+                            break;
+                            
+                        default:
+                            throw new InvalidOperationException("Unknown Mapping Type!");
+                    }
+                }
+
                 if (!String.IsNullOrEmpty(setFields)) { setFields += ",\r\n"; }
                 setFields += $"{curMappingField.DbColumnName} = @{curMappingField.DbColumnName}";
             }
@@ -138,6 +173,25 @@ public class MySqlEntity<T>
 
             foreach (var curMappingField in this.Mapping.Fields)
             {
+                if(curMappingField is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
+                {
+                    switch (foreignKeyMapping.MapType)
+                    {
+                        // Do not Update Foreign Key on Collection Properties - These will be removed or added 
+                        case ForeignKeyMapType.Side1List:
+                        case ForeignKeyMapType.SideNListImport:
+                            continue;
+
+                        case ForeignKeyMapType.SideNProperty:
+                            break;
+                            
+                        default:
+                            throw new InvalidOperationException("Unknown Mapping Type!");
+
+                    }
+                }
+
+                // Ignore Primary Keys - This should not be changed
                 if (curMappingField == this.Mapping.PrimaryKey) { continue; }
 
                 string parmName = $"@{curMappingField.DbColumnName}";

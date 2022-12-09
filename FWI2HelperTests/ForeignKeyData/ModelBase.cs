@@ -17,7 +17,6 @@ namespace FWI2HelperTests.ForeignKeyData
         {
             return DBAccess<T>.Instance.GetById(id);
         }
-
         public static bool operator !=(ModelBase<T, TDB>? left, ModelBase<T, TDB>? right)
         {
             return !(left == right);

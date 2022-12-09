@@ -36,6 +36,8 @@ public abstract class MySqlEntityFieldMappingForeignKey<TEntity> : MySqlEntityFi
 
     internal abstract void EnsureForeignEntitesCreated(TEntity entity);
 
+    internal abstract void EnsureForeignEntitesUpdated(TEntity entity);
+
     public override string ToString()
     {
         return $"FieldMappingForeignKey '{this.ClassPropertyName}' ({this.DotNetType.FullName}) --> '{this.ForeignTableName}.{this.DbColumnName}' ({this.DbType})";
@@ -188,8 +190,6 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         switch (this.MapType)
         {
             case ForeignKeyMapType.Side1List:
-                var entityPrimaryKey = GetPrimaryKey(entity);
-
                 var foreignFactory = MySqlFactContainer.Default
                                             .GetFactoryForEntity<TForeignEntity>();
 
@@ -219,6 +219,57 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         }
     }
 
+    internal override void EnsureForeignEntitesUpdated(TEntity entity)
+    {
+        switch (this.MapType)
+        {
+            case ForeignKeyMapType.Side1List:
+                var foreignFactory = MySqlFactContainer.Default
+                                            .GetFactoryForEntity<TForeignEntity>();
+
+                IEnumerable<TForeignEntity>? list = this.GetNetValue(entity) as IEnumerable<TForeignEntity>;
+                if (list == null) { throw new ArgumentException("Foreign Entity List is null!"); }
+
+                // Remove entities which are no longer in the list
+                var entitesToDelete = foreignFactory.GetAll()
+                                        .Where(fEntity => !list.Any(lEntity => Object.Equals(GetForeignEntityPrimaryKey(lEntity), (GetForeignEntityPrimaryKey(fEntity)))));
+                
+                foreach(TForeignEntity curEntity in entitesToDelete)
+                {
+                    var foreignEntityWrapper = foreignFactory.FromEntity(curEntity);
+                    foreignEntityWrapper.Delete();
+                }
+
+                // Update Remaining entites
+                foreach (TForeignEntity foreignEntity in list)
+                {
+                    // Check if entity already exists in DB
+                    bool entityInDb = foreignFactory.TryGetEntityById(GetForeignEntityPrimaryKey(foreignEntity)) != null;
+                    var foreignEntityWrapper = foreignFactory.FromEntity(foreignEntity);
+                    if (entityInDb) 
+                    {
+                        foreignEntityWrapper.Update();
+                    }
+                    else
+                    {
+                        foreignEntityWrapper.Create(new MySqlEntityCreationContext<TEntity>(entity));
+                    }
+                }
+                break;
+
+            case ForeignKeyMapType.SideNProperty:
+                // No further action needed - N side can be deleted without removal of 1 side
+                break;
+
+            case ForeignKeyMapType.SideNListImport:
+                // No further action needed (Entity cannot be removed in List, we don't know how many copies of the foreign entity are existing)
+                break;
+
+            default:
+                throw new NotSupportedException("Unknown Map Type!");
+        }
+    }
+
     /// <summary>
     /// Resolves referenced Entities from Database
     /// </summary>
@@ -230,10 +281,19 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         if (this.MapType != ForeignKeyMapType.Side1List) { throw new Exception("Not allowed for this MapType!"); }
         object entityPrimaryKey = GetPrimaryKey(entity);
 
+        var foreignMapping = MySqlFactContainer.Default
+                                                .GetFactoryForEntity<TForeignEntity>()
+                                                .Mapping.Fields.FirstOrDefault(mapping => mapping is MySqlEntityFieldMappingForeignKey<TForeignEntity, TEntity> foreignMapping && foreignMapping.MapType == ForeignKeyMapType.SideNListImport)
+                                                as MySqlEntityFieldMappingForeignKey<TForeignEntity, TEntity>;
+        
+        if(foreignMapping == null)
+        {
+            throw new InvalidOperationException("Corresponding SideNListImport in Foreign Entiy Mapping not found for this Side1List Foreign Key!"); 
+        }
+
         IEnumerable<TForeignEntity> foreignEntities = MySqlFactContainer.Default
                                                         .GetFactoryForEntity<TForeignEntity>()
-                                                        .GetAll()
-                                                        .Where(foreignEntity => entityPrimaryKey.Equals(GetForeignEntityPrimaryKey(foreignEntity)));
+                                                        .GetAllWithForeignKey(foreignMapping, entity);
 
         foreach (TForeignEntity curEntity in foreignEntities)
         {
@@ -247,7 +307,7 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
     /// <param name="foreignEntity"></param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException"></exception>
-    private static object? GetForeignEntityPrimaryKey(TForeignEntity? foreignEntity)
+    internal static object? GetForeignEntityPrimaryKey(TForeignEntity? foreignEntity)
     {
         if (foreignEntity == null) { return null; }
 

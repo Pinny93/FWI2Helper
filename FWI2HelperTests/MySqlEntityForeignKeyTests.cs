@@ -79,7 +79,7 @@ namespace FWI2HelperTests
         }
 
         [Fact]
-        public void TestCreateEntityWithForeignKey()
+        public void TestCreateUpdateDeleteEntityWithForeignKey()
         {
             FactoryInitializer.InitializeFactories();
             Kunde k = new Kunde()
@@ -117,12 +117,56 @@ namespace FWI2HelperTests
 
             Bestellung bestFromDb = Bestellung.GetById(best.Id);
 
-            Assert.Equal(bestFromDb, best);
+            // Check DB Entity matches created one
+            Assert.Equal(bestFromDb.Id, best.Id);
+            Assert.Equal(bestFromDb.Kunde, best.Kunde);
+            Assert.Equal(bestFromDb.Status, best.Status);
+            Assert.Equal(bestFromDb.Positionen.Count, best.Positionen.Count);
+            
+            for(int i = 0; i < best.Positionen.Count; i++)
+            {
+                Assert.Equal(best.Positionen[i].Id, bestFromDb.Positionen[i].Id);
+            }
+
+            // Add new Postions and Update
+
+            Artikel art2 = new Artikel()
+            {
+                Bezeichnung = "Testartikel #2",
+                Beschreibung = "Ein weiterer Artikel, nur zum Testen. Sollte nicht gekauft werden, da dieser nur leere Luft ist",
+                Kundenbewertung = 4,
+                Preis = 0.01m,
+            };
+            art2.Create();
+
+            // Remove existing to test removal
+            best.Positionen.Clear();
+
+            best.Positionen.Add(new BestellPos() {
+                Artikel = art2,
+                Menge = 3,
+            });
+
+            best.Positionen.Add(new BestellPos() {
+                Artikel = art,
+                Menge = 8,
+            });
+
+            best.Status = BestellStatus.Bestellt;
+            best.Update();
+
+            bestFromDb = Bestellung.GetById(best.Id);
+            Assert.Equal(2, bestFromDb.Positionen.Count);
+            Assert.True(bestFromDb.Positionen[0].Id > 0);
+            Assert.True(bestFromDb.Positionen[1].Id > 0);
+            Assert.True(bestFromDb.Positionen[0].Menge == 3);
+            Assert.True(bestFromDb.Positionen[1].Menge == 8);
 
             // Cleanup
-            best.Positionen.ForEach(pos => pos.Delete());
+            //best.Positionen.ForEach(pos => pos.Delete());
             best.Delete();
             art.Delete();
+            art2.Delete();
             k.Delete();
         }
     }

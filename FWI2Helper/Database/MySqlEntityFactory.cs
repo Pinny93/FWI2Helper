@@ -84,6 +84,46 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
         return new MySqlEntity<T>(entity, this.Mapping, _connectionFactory);
     }
 
+    internal IQueryable<T> GetAllWithForeignKey<TForeignEntity>(MySqlEntityFieldMappingForeignKey<T, TForeignEntity> mapping, TForeignEntity foreignEntity)
+        where TForeignEntity : class, new()
+    {
+        List<T> data = new List<T>();
+
+        // TODO: Enhance, so that no complete enumeration is done on every call... (Implement IQueryable Provider)
+        IEnumerable<T> EnumerateAll()
+        {
+            using (var con = _connectionFactory())
+            {
+                con.Open();
+
+                var fields = this.Mapping.Fields;
+                string dbColumns = $"{fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
+
+                MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName} WHERE {mapping.DbColumnName} = @foreignId", con);
+
+                cmd.Parameters.Add("@foreignId", mapping.DbType);
+                cmd.Parameters["@foreignId"].Value = MySqlEntityFieldMappingForeignKey<T, TForeignEntity>.GetForeignEntityPrimaryKey(foreignEntity);
+
+                MySqlDataReader rdr = cmd.ExecuteReader();
+                while (rdr.Read())
+                {
+                    T newEntity = new();
+                    foreach (var curMapping in fields)
+                    {
+                        curMapping.SetNetValueFromReader(newEntity, rdr);
+                    }
+
+                    Trace.WriteLine($"GetAll(): Enumerating through {typeof(T).FullName}:{this.Mapping?.PrimaryKey?.GetDBValue(newEntity) ?? -1}");
+                    yield return newEntity;
+                }
+
+                Trace.WriteLine($"GetAll(): End of Enumeration {typeof(T).FullName}");
+            }
+        }
+
+        return EnumerateAll().AsQueryable();
+    }
+
     public IQueryable<T> GetAll()
     {
         List<T> data = new List<T>();
