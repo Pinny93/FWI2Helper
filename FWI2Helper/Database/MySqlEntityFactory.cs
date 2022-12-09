@@ -49,7 +49,7 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
             con.Open();
 
             var dbColumns = this.Mapping.Fields
-                .Where(field => !(field is MySqlEntityFieldMappingForeignKey<T> fkey && fkey.MapType == ForeignKeyMapType.SideNList))
+                .Where(field => !(field is MySqlEntityFieldMappingForeignKey<T> fkey && fkey.MapType == ForeignKeyMapType.Side1List))
                 .Select(m => m.DbColumnName)
                 .ToCommaSeparatedString();
 

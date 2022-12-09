@@ -17,19 +17,19 @@ namespace FWI2HelperTests
 
             // Bestellung.Kunde
             Assert.True(fact.Mapping.Fields[2] is MySqlEntityFieldMappingForeignKey<Bestellung, Kunde> fKeyMapping &&
-                        fKeyMapping.MapType == ForeignKeyMapType.Side1Property);
+                        fKeyMapping.MapType == ForeignKeyMapType.SideNProperty);
             // Bestellung.Positionen
             Assert.True(fact.Mapping.Fields[3] is MySqlEntityFieldMappingForeignKey<Bestellung, BestellPos> fKeyMapping2 &&
-                        fKeyMapping2.MapType == ForeignKeyMapType.SideNList);
+                        fKeyMapping2.MapType == ForeignKeyMapType.Side1List);
 
             var factPos = DBBestellPos.Instance.GetFactory();
             Assert.True(factPos.Mapping.Fields.Count == 4);
             Assert.True(factPos.Mapping.Fields[0] == factPos.Mapping.PrimaryKey);
 
             Assert.True(factPos.Mapping.Fields[1] is MySqlEntityFieldMappingForeignKey<BestellPos, Artikel> fkeyArt &&
-                        fkeyArt.MapType == ForeignKeyMapType.Side1Property);
+                        fkeyArt.MapType == ForeignKeyMapType.SideNProperty);
             Assert.True(factPos.Mapping.Fields[2] is MySqlEntityFieldMappingForeignKey<BestellPos, Bestellung> fkeyBest &&
-                        fkeyBest.MapType == ForeignKeyMapType.Side1Import);
+                        fkeyBest.MapType == ForeignKeyMapType.SideNListImport);
         }
 
         [Fact]

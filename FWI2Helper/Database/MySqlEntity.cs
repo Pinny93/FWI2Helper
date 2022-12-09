@@ -64,7 +64,7 @@ public class MySqlEntity<T>
 
         var mappings = this.Mapping.Fields
                         .Where(field => field is not MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping ||
-                                    foreignKeyMapping.MapType != ForeignKeyMapType.SideNList);
+                                    foreignKeyMapping.MapType != ForeignKeyMapType.Side1List);
 
         string fields = $"{mappings.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
         string values = $"{mappings.Select(m => "@" + m.DbColumnName).ToCommaSeparatedString()}";
@@ -77,17 +77,17 @@ public class MySqlEntity<T>
             {
                 switch (foreignKeyMapping.MapType)
                 {
-                    case ForeignKeyMapType.SideNList:
+                    case ForeignKeyMapType.Side1List:
                         if (kind.HasFlag(SQLCommandKind.ChildEntities)) { subCommands.AddRange(foreignKeyMapping.HandleInsertReferences(this.Entity, con)); }
                         break;
 
-                    case ForeignKeyMapType.Side1Import:
+                    case ForeignKeyMapType.SideNListImport:
                         if (foreignBaseEntityKey == null) { throw new InvalidOperationException("Individual Insert of this Entity not allowed!"); }
                         cmd.Parameters.Add(parmName, curMappingField.DbType);
                         cmd.Parameters[parmName].Value = foreignBaseEntityKey;
                         break;
 
-                    case ForeignKeyMapType.Side1Property:
+                    case ForeignKeyMapType.SideNProperty:
                         cmd.Parameters.Add(parmName, curMappingField.DbType);
                         cmd.Parameters[parmName].Value = foreignKeyMapping.GetDBValue(this.Entity);
                         break;
@@ -147,6 +147,15 @@ public class MySqlEntity<T>
     public void Delete()
     {
         if (this.Mapping.PrimaryKey == null) { throw new NotSupportedException("No Primary Key Set! Update is currently only possible if there is a primary key!"); }
+
+        // Check if entity has any foreign associations
+        foreach (var curMapping in this.Mapping.Fields)
+        {
+            if (curMapping is MySqlEntityFieldMappingForeignKey<T> foreignKeyMapping)
+            {
+                foreignKeyMapping.EnsureForeignEntitesDeleted(this.Entity);
+            }
+        }
 
         using (var con = _connectionFactory())
         {

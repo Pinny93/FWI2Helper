@@ -21,11 +21,13 @@ public abstract class MySqlEntityFieldMappingForeignKey<TEntity> : MySqlEntityFi
         this.ForeignKeyNetType = foreignKeyNetType;
     }
 
-    public abstract void ResolveNetEntityById(TEntity entity, object id);
+    internal abstract void ResolveNetEntityById(TEntity entity, object id);
 
-    public abstract void ResolveNetEntitiesById(TEntity entity);
+    internal abstract void ResolveNetEntitiesById(TEntity entity);
 
-    public abstract IEnumerable<MySqlCommand> HandleInsertReferences(TEntity entity, MySqlConnection con);
+    internal abstract void EnsureForeignEntitesDeleted(TEntity entity);
+
+    internal abstract IEnumerable<MySqlCommand> HandleInsertReferences(TEntity entity, MySqlConnection con);
 
     public override string ToString()
     {
@@ -38,7 +40,7 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
     where TForeignEntity : class, new()
 {
     public MySqlEntityFieldMappingForeignKey(Expression<Func<TEntity, TForeignEntity?>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.Side1Property, typeof(TForeignEntity), dbType)
+        : base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.SideNProperty, typeof(TForeignEntity), dbType)
     {
         var declInfo = this.GetFromExpression(expression);
         //this.DotNetType = this.GetForeignKeyType();
@@ -47,7 +49,7 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
     }
 
     public MySqlEntityFieldMappingForeignKey(Expression<Func<TEntity, IEnumerable<TForeignEntity>>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.SideNList, null!, dbType)
+        : base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.Side1List, null!, dbType)
     {
         var declInfo = this.GetFromExpression(expression);
         //this.DotNetType = this.GetForeignKeyType();
@@ -56,7 +58,7 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
     }
 
     public MySqlEntityFieldMappingForeignKey(Expression<Func<TForeignEntity, IEnumerable<TEntity>>> expression, string dbForeignTableName, string dbColumnName, MySqlDbType? dbType = null)
-        : base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.Side1Import, typeof(TForeignEntity), dbType)
+        : base(null!, null!, dbColumnName, dbForeignTableName, ForeignKeyMapType.SideNListImport, typeof(TForeignEntity), dbType)
     {
         var declInfo = this.GetFromExpression(expression);
         //this.DotNetType = this.GetForeignKeyType();
@@ -109,27 +111,63 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         return enumerableType.GetGenericArguments()[0];
     }
 
+    internal override void EnsureForeignEntitesDeleted(TEntity entity)
+    {
+        switch (this.MapType)
+        {
+            case ForeignKeyMapType.Side1List:
+                // Check if List entites exists in DB
+                var entityPrimaryKey = GetPrimaryKey(entity);
+
+                var foreignFactory = MySqlFactContainer.Default
+                                            .GetFactoryForEntity<TForeignEntity>();
+
+                IEnumerable<TForeignEntity>? list = this.GetNetValue(entity) as IEnumerable<TForeignEntity>;
+                if (list == null) { throw new ArgumentException("Foreign Entity List is null!"); }
+
+                foreach (TForeignEntity foreignEntity in list)
+                {
+                    var dbEntity = foreignFactory.TryGetEntityById(GetForeignEntityPrimaryKey(foreignEntity));
+                    if (dbEntity == null) { continue; }
+
+                    foreignFactory.FromEntity(foreignEntity).Delete();
+                }
+                break;
+
+            case ForeignKeyMapType.SideNProperty:
+                // No further action needed - N side can be deleted without removal of 1 side
+                break;
+
+            case ForeignKeyMapType.SideNListImport:
+                // No further action needed (Entity cannot be removed in List, we don't know how many copies of the foreign entity are existing)
+                break;
+
+            default:
+                throw new NotSupportedException("Unknown Map Type!");
+        }
+    }
+
     internal override object? GetDBValue(TEntity entity)
     {
         switch (this.MapType)
         {
-            case ForeignKeyMapType.SideNList:
+            case ForeignKeyMapType.Side1List:
                 throw new NotSupportedException("You cannot resolve a List of Enities to one DB value...");
 
-            case ForeignKeyMapType.Side1Property:
+            case ForeignKeyMapType.SideNProperty:
                 TForeignEntity? foreignEntity = base.GetNetValue(entity) as TForeignEntity;
                 return GetForeignEntityPrimaryKey(foreignEntity);
 
-            case ForeignKeyMapType.Side1Import:
+            case ForeignKeyMapType.SideNListImport:
                 throw new NotSupportedException("No Net Entity for this Mapping...");
         }
 
         throw new InvalidOperationException("Unknown Map type!");
     }
 
-    public override void ResolveNetEntityById(TEntity entity, object foreignId)
+    internal override void ResolveNetEntityById(TEntity entity, object foreignId)
     {
-        if (this.MapType != ForeignKeyMapType.Side1Property) { throw new Exception("Not allowed for this MapType!"); }
+        if (this.MapType != ForeignKeyMapType.SideNProperty) { throw new Exception("Not allowed for this MapType!"); }
 
         TForeignEntity? foreignEntity = MySqlFactContainer.Default
                                             .GetFactoryForEntity<TForeignEntity>()
@@ -138,7 +176,7 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
         this.SetNetValue(entity, foreignEntity);
     }
 
-    public override IEnumerable<MySqlCommand> HandleInsertReferences(TEntity entity, MySqlConnection con)
+    internal override IEnumerable<MySqlCommand> HandleInsertReferences(TEntity entity, MySqlConnection con)
     {
         List<MySqlCommand> commands = new List<MySqlCommand>();
 
@@ -164,9 +202,9 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
     /// <param name="entity"></param>
     /// <exception cref="Exception"></exception>
     /// <exception cref="InvalidOperationException"></exception>
-    public override void ResolveNetEntitiesById(TEntity entity)
+    internal override void ResolveNetEntitiesById(TEntity entity)
     {
-        if (this.MapType != ForeignKeyMapType.SideNList) { throw new Exception("Not allowed for this MapType!"); }
+        if (this.MapType != ForeignKeyMapType.Side1List) { throw new Exception("Not allowed for this MapType!"); }
         object entityPrimaryKey = GetPrimaryKey(entity);
 
         IEnumerable<TForeignEntity> foreignEntities = MySqlFactContainer.Default
@@ -209,7 +247,7 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
 
 public enum ForeignKeyMapType
 {
-    SideNList,
-    Side1Property,
-    Side1Import
+    Side1List,
+    SideNProperty,
+    SideNListImport
 }

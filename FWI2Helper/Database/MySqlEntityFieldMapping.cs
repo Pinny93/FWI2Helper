@@ -95,15 +95,15 @@ public class MySqlEntityFieldMapping<T>
         {
             switch (foreignKeyMapping.MapType)
             {
-                case ForeignKeyMapType.Side1Import:
+                case ForeignKeyMapType.SideNListImport:
                     break;
 
-                case ForeignKeyMapType.Side1Property:
+                case ForeignKeyMapType.SideNProperty:
                     object? value = rdr[this.DbColumnName];
                     if (value != null) { foreignKeyMapping.ResolveNetEntityById(entity, value); }
                     break;
 
-                case ForeignKeyMapType.SideNList:
+                case ForeignKeyMapType.Side1List:
                     foreignKeyMapping.ResolveNetEntitiesById(entity);
                     break;
 
