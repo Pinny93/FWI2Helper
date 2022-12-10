@@ -84,8 +84,8 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
         return new MySqlEntity<T>(entity, this.Mapping, _connectionFactory);
     }
 
-    internal IQueryable<T> GetAllWithForeignKey<TForeignEntity>(MySqlEntityFieldMappingForeignKey<T, TForeignEntity> mapping, TForeignEntity foreignEntity)
-        where TForeignEntity : class, new()
+    internal IQueryable<T> GetAllWithForeignKey<TListEntity>(MySqlEntityFieldMappingForeignKey<T, TListEntity> mapping, TListEntity foreignEntity)
+        where TListEntity : class, new()
     {
         List<T> data = new List<T>();
 
@@ -102,7 +102,7 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
                 MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName} WHERE {mapping.DbColumnName} = @foreignId", con);
 
                 cmd.Parameters.Add("@foreignId", mapping.DbType);
-                cmd.Parameters["@foreignId"].Value = MySqlEntityFieldMappingForeignKey<T, TForeignEntity>.GetForeignEntityPrimaryKey(foreignEntity);
+                cmd.Parameters["@foreignId"].Value = MySqlEntityFieldMappingForeignKey<T, TListEntity>.GetForeignEntityPrimaryKey(foreignEntity);
 
                 MySqlDataReader rdr = cmd.ExecuteReader();
                 while (rdr.Read())

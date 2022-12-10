@@ -230,8 +230,18 @@ public class MySqlEntityFieldMappingForeignKey<TEntity, TForeignEntity> : MySqlE
                 IEnumerable<TForeignEntity>? list = this.GetNetValue(entity) as IEnumerable<TForeignEntity>;
                 if (list == null) { throw new ArgumentException("Foreign Entity List is null!"); }
 
+                var foreignMapping = MySqlFactContainer.Default
+                                                        .GetFactoryForEntity<TForeignEntity>()
+                                                        .Mapping.Fields.FirstOrDefault(mapping => mapping is MySqlEntityFieldMappingForeignKey<TForeignEntity, TEntity> foreignMapping && foreignMapping.MapType == ForeignKeyMapType.SideNListImport)
+                                                        as MySqlEntityFieldMappingForeignKey<TForeignEntity, TEntity>;
+                
+                if(foreignMapping == null)
+                {
+                    throw new InvalidOperationException("Corresponding SideNListImport in Foreign Entiy Mapping not found for this Side1List Foreign Key!"); 
+                }
+
                 // Remove entities which are no longer in the list
-                var entitesToDelete = foreignFactory.GetAll()
+                var entitesToDelete = foreignFactory.GetAllWithForeignKey(foreignMapping, entity)
                                         .Where(fEntity => !list.Any(lEntity => Object.Equals(GetForeignEntityPrimaryKey(lEntity), (GetForeignEntityPrimaryKey(fEntity)))));
                 
                 foreach(TForeignEntity curEntity in entitesToDelete)
