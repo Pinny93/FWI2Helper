@@ -9,9 +9,9 @@
   
   <PropertyGroup>
     <PackageId>FWI2Helper</PackageId>
-    <Version>1.0.1</Version>
-    <AssemblyVersion>1.0.1</AssemblyVersion>
-    <FileVersion>1.0.1</FileVersion>
+    <Version>1.0.2</Version>
+    <AssemblyVersion>1.0.2</AssemblyVersion>
+    <FileVersion>1.0.2</FileVersion>
     <Authors>Johannes Pinzer</Authors>
     <Company>JP Industires</Company>
     <PackageTags>FWI2 Helper</PackageTags>
