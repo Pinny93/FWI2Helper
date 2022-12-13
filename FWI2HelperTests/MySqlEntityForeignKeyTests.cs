@@ -47,6 +47,16 @@ namespace FWI2HelperTests
         }
 
         [Fact]
+        public void TestGetMany()
+        {
+            FactoryInitializer.InitializeFactories();
+            var bestCol = Bestellung.ReadAll().ToList();
+
+            Assert.True(bestCol.Any());
+            Assert.True(bestCol[0].Positionen.Any());
+        }
+
+        [Fact]
         public void TestInsertWithForeignKey()
         {
             FactoryInitializer.InitializeFactories();

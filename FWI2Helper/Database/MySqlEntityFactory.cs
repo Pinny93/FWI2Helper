@@ -96,8 +96,10 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
             {
                 con.Open();
 
-                var fields = this.Mapping.Fields;
-                string dbColumns = $"{fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
+                string dbColumns = this.Mapping.Fields
+                                        .Where(field => !(field is MySqlEntityFieldMappingForeignKey<T> fkey && fkey.MapType == ForeignKeyMapType.Side1List))
+                                        .Select(m => m.DbColumnName)
+                                        .ToCommaSeparatedString();
 
                 MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName} WHERE {mapping.DbColumnName} = @foreignId", con);
 
@@ -108,7 +110,7 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
                 while (rdr.Read())
                 {
                     T newEntity = new();
-                    foreach (var curMapping in fields)
+                    foreach (var curMapping in this.Mapping.Fields)
                     {
                         curMapping.SetNetValueFromReader(newEntity, rdr);
                     }
@@ -135,8 +137,10 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
             {
                 con.Open();
 
-                var fields = this.Mapping.Fields;
-                string dbColumns = $"{fields.Select(m => m.DbColumnName).ToCommaSeparatedString()}";
+                string dbColumns = this.Mapping.Fields
+                                        .Where(field => !(field is MySqlEntityFieldMappingForeignKey<T> fkey && fkey.MapType == ForeignKeyMapType.Side1List))
+                                        .Select(m => m.DbColumnName)
+                                        .ToCommaSeparatedString();
 
                 MySqlCommand cmd = new($"SELECT {dbColumns} FROM {this.Mapping.TableName}", con);
 
@@ -144,7 +148,7 @@ public class MySqlEntityFactory<T> : MySqlEntityFactory
                 while (rdr.Read())
                 {
                     T newEntity = new();
-                    foreach (var curMapping in fields)
+                    foreach (var curMapping in this.Mapping.Fields)
                     {
                         curMapping.SetNetValueFromReader(newEntity, rdr);
                     }
