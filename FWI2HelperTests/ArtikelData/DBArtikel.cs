@@ -15,8 +15,7 @@ namespace FWI2HelperTests.ArtikelData
                 .AddField(e => e.Bezeichnung, "bezeichnung", MySqlDbType.VarChar)
                 .AddField(e => e.Beschreibung, "beschreibung", MySqlDbType.Text)
                 .AddField(e => e.Kundenbewertung, "kundenbewertung", MySqlDbType.Int32)
-                .AddField(e => e.Preis, "preis", MySqlDbType.Decimal)
-                .AddField(e => e.Image, "image", MySqlDbType.Blob);
+                .AddField(e => e.Preis, "preis", MySqlDbType.Decimal);
 
             return maFact;
         }

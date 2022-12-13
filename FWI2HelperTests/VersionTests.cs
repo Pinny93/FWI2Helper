@@ -1,5 +1,4 @@
 using System;
-using FWI2HelperTests.ArtikelData;
 
 namespace FWI2HelperTests
 {
@@ -10,9 +9,9 @@ namespace FWI2HelperTests
         {
             var fwiAsm = typeof(Utils).Assembly;
 
-            Assert.Equal(fwiAsm.GetAssemblyVersion()?.ToString(), "1.0.1.0");
-            Assert.Equal(fwiAsm.GetFileVersion(), "1.0.1");
-            Assert.Equal(fwiAsm.GetInformalVersion(), "1.0.1");
+            Assert.Equal("1.0.2.0", fwiAsm.GetAssemblyVersion()?.ToString());
+            Assert.Equal("1.0.2", fwiAsm.GetFileVersion());
+            Assert.Equal("1.0.2", fwiAsm.GetInformalVersion());
         }
     }
 }
